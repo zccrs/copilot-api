@@ -164,6 +164,16 @@ The following command line options are available for the `start` command:
 | --show-token   | Show GitHub and Copilot tokens on fetch and refresh                           | false      | none  |
 | --proxy-env    | Initialize proxy from environment variables                                   | false      | none  |
 
+### API Token Authentication
+
+To require an API token for requests, set the `COPILOT_API_TOKEN` environment variable.
+Multiple tokens can be provided by separating them with `;`.
+
+```sh
+export COPILOT_API_TOKEN="token-a;token-b"
+curl -H "Authorization: Bearer token-a" http://localhost:4141/v1/models
+```
+
 ### Auth Command Options
 
 | Option       | Description               | Default | Alias |
