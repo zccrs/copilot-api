@@ -38,10 +38,17 @@ export const apiTokenAuth = (): MiddlewareHandler => {
       return next()
     }
 
-    const providedTokens = [
-      extractBearerToken(c.req.header("authorization")),
-      extractApiKey(c.req.header("x-api-key")),
-    ].filter((value): value is string => Boolean(value))
+    const bearerToken = extractBearerToken(c.req.header("authorization"))
+    const apiKey = extractApiKey(c.req.header("x-api-key"))
+
+    if (bearerToken && apiKey && bearerToken !== apiKey) {
+      c.header("WWW-Authenticate", AUTH_CHALLENGE)
+      return c.json({ error: "Conflicting API tokens" }, 401)
+    }
+
+    const providedTokens = [bearerToken, apiKey].filter(
+      (value): value is string => Boolean(value),
+    )
 
     if (providedTokens.length === 0) {
       c.header("WWW-Authenticate", AUTH_CHALLENGE)
