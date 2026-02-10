@@ -1,5 +1,7 @@
 import type { MiddlewareHandler } from "hono"
 
+import consola from "consola"
+
 const API_TOKEN_ENV = "COPILOT_API_TOKEN"
 const AUTH_CHALLENGE = 'Bearer realm="copilot-api"'
 
@@ -9,8 +11,25 @@ export const parseApiTokens = (raw: string | undefined): Array<string> =>
     .map((token) => token.trim())
     .filter((token) => token.length > 0) ?? []
 
-export const getApiTokens = (): Array<string> =>
-  parseApiTokens(process.env[API_TOKEN_ENV])
+let hasLoggedApiTokens = false
+
+export const getApiTokens = (): Array<string> => {
+  const rawTokens = process.env[API_TOKEN_ENV]
+  const tokens = parseApiTokens(rawTokens)
+
+  if (!hasLoggedApiTokens) {
+    hasLoggedApiTokens = true
+    if (rawTokens) {
+      consola.info(
+        `Loaded API tokens from ${API_TOKEN_ENV}: ${tokens.join(", ")}`,
+      )
+    } else {
+      consola.info(`No API tokens found in ${API_TOKEN_ENV}`)
+    }
+  }
+
+  return tokens
+}
 
 export const getPrimaryApiToken = (): string | undefined => getApiTokens()[0]
 
