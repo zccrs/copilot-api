@@ -3,22 +3,24 @@ import type { MiddlewareHandler } from "hono"
 const API_TOKEN_ENV = "COPILOT_API_TOKEN"
 const AUTH_CHALLENGE = 'Bearer realm="copilot-api"'
 
-export const parseApiTokens = (raw: string | undefined): string[] =>
+export const parseApiTokens = (raw: string | undefined): Array<string> =>
   raw
     ?.split(";")
     .map((token) => token.trim())
     .filter((token) => token.length > 0) ?? []
 
-export const getApiTokens = (): string[] =>
+export const getApiTokens = (): Array<string> =>
   parseApiTokens(process.env[API_TOKEN_ENV])
 
-export const getPrimaryApiToken = (): string | undefined =>
-  getApiTokens()[0]
+export const getPrimaryApiToken = (): string | undefined => getApiTokens()[0]
 
-const extractBearerToken = (authorization: string | undefined): string | null => {
+const extractBearerToken = (
+  authorization: string | undefined,
+): string | null => {
   if (!authorization) return null
-  const match = authorization.match(/^Bearer\s+(.+)$/i)
-  return match ? match[1].trim() : null
+  const match = authorization.match(/^Bearer\s+(\S+)$/i)
+  const token = match ? match[1].trim() : null
+  return token && token.length > 0 ? token : null
 }
 
 const extractApiKey = (apiKey: string | undefined): string | null => {
