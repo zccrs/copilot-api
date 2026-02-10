@@ -69,4 +69,16 @@ describe("apiTokenAuth", () => {
     })
     expect(response.status).toBe(200)
   })
+
+  test("rejects requests with conflicting auth headers", async () => {
+    setTokens("token-a;token-b")
+    const app = createApp()
+    const response = await app.request("http://localhost/protected", {
+      headers: {
+        Authorization: "Bearer token-a",
+        "x-api-key": "token-b",
+      },
+    })
+    expect(response.status).toBe(401)
+  })
 })

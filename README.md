@@ -168,7 +168,8 @@ The following command line options are available for the `start` command:
 
 To require an API token for requests, set the `COPILOT_API_TOKEN` environment variable.
 Multiple tokens can be provided by separating them with `;`. Requests can use either
-an `Authorization: Bearer <token>` header or an `x-api-key` header.
+an `Authorization: Bearer <token>` header or an `x-api-key` header. If both are sent,
+they must match.
 
 ```sh
 export COPILOT_API_TOKEN="token-a;token-b"
