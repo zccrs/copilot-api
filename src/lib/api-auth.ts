@@ -59,21 +59,33 @@ export const apiTokenAuth = (): MiddlewareHandler => {
       return next()
     }
 
+    const rawApiKey = c.req.header("x-api-key")
     const bearerToken = extractBearerToken(c.req.header("authorization"))
-    const apiKey = extractApiKey(c.req.header("x-api-key"))
+    const apiKey = extractApiKey(rawApiKey)
+    const shouldLogApiKey =
+      c.req.path === "/models" || c.req.path === "/v1/models"
 
     if (bearerToken && apiKey && bearerToken !== apiKey) {
+      if (shouldLogApiKey) {
+        consola.info("Auth failed for models request, x-api-key:", rawApiKey)
+      }
       c.header("WWW-Authenticate", AUTH_CHALLENGE)
       return c.json({ error: "Conflicting API tokens" }, 401)
     }
 
     const token = bearerToken ?? apiKey
     if (!token) {
+      if (shouldLogApiKey) {
+        consola.info("Auth failed for models request, x-api-key:", rawApiKey)
+      }
       c.header("WWW-Authenticate", AUTH_CHALLENGE)
       return c.json({ error: "Missing API token" }, 401)
     }
 
     if (!tokens.includes(token)) {
+      if (shouldLogApiKey) {
+        consola.info("Auth failed for models request, x-api-key:", rawApiKey)
+      }
       c.header("WWW-Authenticate", AUTH_CHALLENGE)
       return c.json({ error: "Invalid API token" }, 401)
     }
