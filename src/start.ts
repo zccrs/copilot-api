@@ -6,7 +6,7 @@ import consola from "consola"
 import { serve, type ServerHandler } from "srvx"
 import invariant from "tiny-invariant"
 
-import { getPrimaryApiToken } from "./lib/api-auth"
+import { getApiTokens, getPrimaryApiToken } from "./lib/api-auth"
 import { ensurePaths } from "./lib/paths"
 import { initProxyFromEnv } from "./lib/proxy"
 import { generateEnvScript } from "./lib/shell"
@@ -47,6 +47,8 @@ export async function runServer(options: RunServerOptions): Promise<void> {
   state.rateLimitSeconds = options.rateLimit
   state.rateLimitWait = options.rateLimitWait
   state.showToken = options.showToken
+
+  getApiTokens()
 
   await ensurePaths()
   await cacheVSCodeVersion()
