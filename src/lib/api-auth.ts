@@ -46,17 +46,13 @@ export const apiTokenAuth = (): MiddlewareHandler => {
       return c.json({ error: "Conflicting API tokens" }, 401)
     }
 
-    const providedTokens = [bearerToken, apiKey].filter(
-      (value): value is string => Boolean(value),
-    )
-
-    if (providedTokens.length === 0) {
+    const token = bearerToken ?? apiKey
+    if (!token) {
       c.header("WWW-Authenticate", AUTH_CHALLENGE)
       return c.json({ error: "Missing API token" }, 401)
     }
 
-    const isValid = providedTokens.some((token) => tokens.includes(token))
-    if (!isValid) {
+    if (!tokens.includes(token)) {
       c.header("WWW-Authenticate", AUTH_CHALLENGE)
       return c.json({ error: "Invalid API token" }, 401)
     }
