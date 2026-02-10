@@ -47,7 +47,7 @@ describe("apiTokenAuth", () => {
     setTokens("token-a;token-b")
     const app = createApp()
     const response = await app.request("http://localhost/protected", {
-      headers: { Authorization: "Bearer nope" },
+      headers: { "x-api-key": "nope" },
     })
     expect(response.status).toBe(401)
   })
@@ -57,6 +57,15 @@ describe("apiTokenAuth", () => {
     const app = createApp()
     const response = await app.request("http://localhost/protected", {
       headers: { Authorization: "Bearer token-b" },
+    })
+    expect(response.status).toBe(200)
+  })
+
+  test("accepts requests with valid x-api-key", async () => {
+    setTokens("token-a;token-b")
+    const app = createApp()
+    const response = await app.request("http://localhost/protected", {
+      headers: { "x-api-key": "token-a" },
     })
     expect(response.status).toBe(200)
   })
