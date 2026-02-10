@@ -21,6 +21,12 @@ const extractBearerToken = (authorization: string | undefined): string | null =>
   return match ? match[1].trim() : null
 }
 
+const extractApiKey = (apiKey: string | undefined): string | null => {
+  if (!apiKey) return null
+  const trimmed = apiKey.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
 export const apiTokenAuth = (): MiddlewareHandler => {
   return async (c, next) => {
     if (c.req.method === "OPTIONS") {
@@ -32,13 +38,18 @@ export const apiTokenAuth = (): MiddlewareHandler => {
       return next()
     }
 
-    const token = extractBearerToken(c.req.header("authorization"))
-    if (!token) {
+    const providedTokens = [
+      extractBearerToken(c.req.header("authorization")),
+      extractApiKey(c.req.header("x-api-key")),
+    ].filter((value): value is string => Boolean(value))
+
+    if (providedTokens.length === 0) {
       c.header("WWW-Authenticate", AUTH_CHALLENGE)
       return c.json({ error: "Missing API token" }, 401)
     }
 
-    if (!tokens.includes(token)) {
+    const isValid = providedTokens.some((token) => tokens.includes(token))
+    if (!isValid) {
       c.header("WWW-Authenticate", AUTH_CHALLENGE)
       return c.json({ error: "Invalid API token" }, 401)
     }

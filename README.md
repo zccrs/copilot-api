@@ -167,11 +167,13 @@ The following command line options are available for the `start` command:
 ### API Token Authentication
 
 To require an API token for requests, set the `COPILOT_API_TOKEN` environment variable.
-Multiple tokens can be provided by separating them with `;`.
+Multiple tokens can be provided by separating them with `;`. Requests can use either
+an `Authorization: Bearer <token>` header or an `x-api-key` header.
 
 ```sh
 export COPILOT_API_TOKEN="token-a;token-b"
 curl -H "Authorization: Bearer token-a" http://localhost:4141/v1/models
+curl -H "x-api-key: token-a" http://localhost:4141/v1/models
 ```
 
 ### Auth Command Options
