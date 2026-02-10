@@ -3,6 +3,17 @@ node_modules/
 
 # local env
 *.local
+.env
+.env.*
+!.env.example
+
+# credentials and secrets
+*_token
+*.key
+*.pem
+*.crt
+github_token
+copilot_token
 
 # aider
 .aider*
