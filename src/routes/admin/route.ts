@@ -26,27 +26,89 @@ const toFormText = (value: unknown): string =>
   typeof value === "string" ? value : ""
 
 const loginPage = `<!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="light">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Copilot API Admin Login</title>
+  <script>
+    (function () {
+      const stored = localStorage.getItem("copilot-admin-theme") ?? "light";
+      document.documentElement.setAttribute(
+        "data-theme",
+        stored === "dark" ? "dark" : "light",
+      );
+    })();
+  </script>
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: #0f172a; color: #e2e8f0; }
-    .container { max-width: 420px; margin: 80px auto; padding: 24px; background: #111827; border: 1px solid #334155; border-radius: 12px; }
+    .container { max-width: 480px; margin: 80px auto; padding: 24px; background: var(--color-bg-soft); border: 1px solid var(--color-bg-light-2); border-radius: 12px; }
     h1 { margin: 0 0 16px; font-size: 20px; }
     label { display: block; margin: 12px 0 6px; font-size: 14px; color: #cbd5e1; }
     input { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 8px; border: 1px solid #475569; background: #0b1220; color: #e2e8f0; color-scheme: dark; }
     .datetime-input { background: #0b1220; border: 1px solid #475569; color: #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 14px; font-weight: 400; min-width: 228px; text-align: left; white-space: nowrap; padding-right: 40px; box-sizing: border-box; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e2e8f0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='4' width='18' height='18' rx='2' ry='2'/><line x1='16' y1='2' x2='16' y2='6'/><line x1='8' y1='2' x2='8' y2='6'/><line x1='3' y1='10' x2='21' y2='10'/></svg>"); background-repeat: no-repeat; background-position: right 12px center; background-size: 18px 18px; }
     .datetime-input:focus { border-color: #2563eb; outline: none; }
     input[type="datetime-local"]::-webkit-calendar-picker-indicator { opacity: 0; cursor: pointer; }
-    button { margin-top: 16px; width: 100%; padding: 10px 12px; border: none; border-radius: 8px; background: #2563eb; color: white; font-weight: 600; cursor: pointer; }
+    button { margin-top: 16px; width: 100%; padding: 10px 12px; border: none; border-radius: 8px; background: var(--color-blue); color: var(--color-bg-darkest); font-weight: 600; cursor: pointer; }
     .error { margin-top: 12px; color: #f87171; min-height: 20px; font-size: 14px; }
+    .page-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .theme-toggle { border: 1px solid var(--color-bg-light-3); background: var(--color-bg-soft); color: var(--color-fg-lightest); padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+    .theme-toggle:hover { border-color: var(--color-blue); color: var(--color-blue); }
+
+    :root {
+      --color-red: #cc241d;
+      --color-green: #98971a;
+      --color-yellow: #d79921;
+      --color-blue: #458588;
+      --color-purple: #b16286;
+      --color-aqua: #689d6a;
+      --color-orange: #d65d0e;
+      --color-gray: #a89984;
+      --color-bg-darkest: #1d2021;
+      --color-bg: #282828;
+      --color-bg-light-1: #3c3836;
+      --color-bg-light-2: #504945;
+      --color-bg-light-3: #665c54;
+      --color-bg-soft: #32302f;
+      --color-fg-dark: #bdae93;
+      --color-fg-medium: #d5c4a1;
+      --color-fg-light: #ebdbb2;
+      --color-fg-lightest: #fbf1c7;
+    }
+
+    [data-theme="light"] {
+      --color-red: #b91c1c;
+      --color-green: #15803d;
+      --color-yellow: #b45309;
+      --color-blue: #2563eb;
+      --color-purple: #7c3aed;
+      --color-aqua: #0f766e;
+      --color-orange: #c2410c;
+      --color-gray: #64748b;
+      --color-bg-darkest: #f7f9fc;
+      --color-bg: #f1f5f9;
+      --color-bg-light-1: #e2e8f0;
+      --color-bg-light-2: #d7dee8;
+      --color-bg-light-3: #cbd5e1;
+      --color-bg-soft: #f1f5f9;
+      --color-fg-dark: #1f2937;
+      --color-fg-medium: #334155;
+      --color-fg-light: #475569;
+      --color-fg-lightest: #0f172a;
+    }
+
+    body { background: var(--color-bg-darkest); color: var(--color-fg-light); }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Copilot API 管理后台</h1>
+    <div class="page-header">
+      <h1>Copilot API 管理后台</h1>
+      <button id="theme-toggle" class="theme-toggle" type="button">
+        <span id="theme-icon">🌞</span>
+        <span id="theme-label">Light</span>
+      </button>
+    </div>
     <form id="login-form">
       <label for="username">用户名</label>
       <input id="username" name="username" required autocomplete="username" />
@@ -58,7 +120,28 @@ const loginPage = `<!doctype html>
   </div>
   <script>
     const form = document.getElementById("login-form");
+    const themeToggle = document.getElementById("theme-toggle");
+    const themeIcon = document.getElementById("theme-icon");
+    const themeLabel = document.getElementById("theme-label");
+    const THEME_STORAGE_KEY = "copilot-admin-theme";
+
+    function applyTheme(theme) {
+      const resolved = theme === "dark" ? "dark" : "light";
+      document.documentElement.setAttribute("data-theme", resolved);
+      themeIcon.textContent = resolved === "dark" ? "🌙" : "🌞";
+      themeLabel.textContent = resolved === "dark" ? "Dark" : "Light";
+    }
     const error = document.getElementById("error");
+
+    themeToggle.addEventListener("click", () => {
+      const current =
+        document.documentElement.getAttribute("data-theme") ?? "light";
+      const nextTheme = current === "dark" ? "light" : "dark";
+      localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+      applyTheme(nextTheme);
+    });
+
+    applyTheme(localStorage.getItem(THEME_STORAGE_KEY) ?? "light");
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -88,48 +171,105 @@ const loginPage = `<!doctype html>
 </html>`
 
 const adminPage = `<!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="light">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Copilot API Admin</title>
+  <script>
+    (function () {
+      const stored = localStorage.getItem("copilot-admin-theme") ?? "light";
+      document.documentElement.setAttribute(
+        "data-theme",
+        stored === "dark" ? "dark" : "light",
+      );
+    })();
+  </script>
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: #0f172a; color: #e2e8f0; }
+    :root {
+      --color-red: #cc241d;
+      --color-green: #98971a;
+      --color-yellow: #d79921;
+      --color-blue: #458588;
+      --color-purple: #b16286;
+      --color-aqua: #689d6a;
+      --color-orange: #d65d0e;
+      --color-gray: #a89984;
+      --color-bg-darkest: #1d2021;
+      --color-bg: #282828;
+      --color-bg-light-1: #3c3836;
+      --color-bg-light-2: #504945;
+      --color-bg-light-3: #665c54;
+      --color-bg-soft: #32302f;
+      --color-fg-dark: #bdae93;
+      --color-fg-medium: #d5c4a1;
+      --color-fg-light: #ebdbb2;
+      --color-fg-lightest: #fbf1c7;
+    }
+
+    [data-theme="light"] {
+      --color-red: #b91c1c;
+      --color-green: #15803d;
+      --color-yellow: #b45309;
+      --color-blue: #2563eb;
+      --color-purple: #7c3aed;
+      --color-aqua: #0f766e;
+      --color-orange: #c2410c;
+      --color-gray: #64748b;
+      --color-bg-darkest: #f7f9fc;
+      --color-bg: #f1f5f9;
+      --color-bg-light-1: #e2e8f0;
+      --color-bg-light-2: #d7dee8;
+      --color-bg-light-3: #cbd5e1;
+      --color-bg-soft: #f1f5f9;
+      --color-fg-dark: #1f2937;
+      --color-fg-medium: #334155;
+      --color-fg-light: #475569;
+      --color-fg-lightest: #0f172a;
+    }
+
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: var(--color-bg-darkest); color: var(--color-fg-light); }
     .container { max-width: 1080px; margin: 24px auto; padding: 0 16px; }
-    .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .page-header { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: space-between; margin-bottom: 12px; }
     .title { margin: 0; font-size: 22px; }
-    .spacer { flex: 1; }
-    .card { background: #111827; border: 1px solid #334155; border-radius: 12px; padding: 16px; margin-top: 16px; }
+    .card { background: var(--color-bg-soft); border: 1px solid var(--color-bg-light-2); border-radius: 12px; padding: 16px; margin-top: 16px; }
     .new-form { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; }
-    input { padding: 10px 12px; border-radius: 8px; border: 1px solid #475569; background: #0b1220; color: #e2e8f0; color-scheme: dark; }
-    .datetime-input { background: #0b1220; border: 1px solid #475569; color: #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 14px; font-weight: 400; min-width: 228px; text-align: left; white-space: nowrap; padding-right: 40px; box-sizing: border-box; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e2e8f0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='4' width='18' height='18' rx='2' ry='2'/><line x1='16' y1='2' x2='16' y2='6'/><line x1='8' y1='2' x2='8' y2='6'/><line x1='3' y1='10' x2='21' y2='10'/></svg>"); background-repeat: no-repeat; background-position: right 12px center; background-size: 18px 18px; }
-    .datetime-input:focus { border-color: #2563eb; outline: none; }
+    input { padding: 10px 12px; border-radius: 8px; border: 1px solid var(--color-bg-light-3); background: var(--color-bg-darkest); color: var(--color-fg-medium); color-scheme: dark; }
+    .datetime-input { background: var(--color-bg-darkest); border: 1px solid var(--color-bg-light-3); color: var(--color-fg-medium); border-radius: 8px; padding: 10px 14px; font-size: 14px; font-weight: 400; min-width: 228px; text-align: left; white-space: nowrap; padding-right: 40px; box-sizing: border-box; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d5c4a1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='4' width='18' height='18' rx='2' ry='2'/><line x1='16' y1='2' x2='16' y2='6'/><line x1='8' y1='2' x2='8' y2='6'/><line x1='3' y1='10' x2='21' y2='10'/></svg>"); background-repeat: no-repeat; background-position: right 12px center; background-size: 18px 18px; }
+    .datetime-input:focus { border-color: var(--color-blue); outline: none; }
     input[type="datetime-local"]::-webkit-calendar-picker-indicator { opacity: 0; cursor: pointer; }
-    button { padding: 10px 12px; border: none; border-radius: 8px; background: #2563eb; color: white; font-weight: 600; cursor: pointer; }
-    button.danger { background: #dc2626; }
-    button.secondary { background: #334155; }
+    button { padding: 10px 12px; border: none; border-radius: 8px; background: var(--color-blue); color: var(--color-bg-darkest); font-weight: 600; cursor: pointer; }
+    button.danger { background: var(--color-red); }
+    button.secondary { background: var(--color-bg-light-2); color: var(--color-fg-lightest); }
     table { width: 100%; border-collapse: collapse; }
-    th, td { text-align: left; border-bottom: 1px solid #334155; padding: 12px 8px; vertical-align: middle; }
-    .muted { color: #94a3b8; font-size: 13px; }
+    th, td { text-align: left; border-bottom: 1px solid var(--color-bg-light-2); padding: 12px 8px; vertical-align: middle; }
+    .muted { color: var(--color-gray); font-size: 13px; }
     .new-token { margin-top: 10px; word-break: break-all; color: #22c55e; min-height: 20px; }
     .actions { display: flex; flex-wrap: wrap; gap: 6px; }
-    dialog.settings-dialog { border: 1px solid #334155; border-radius: 12px; background: #111827; color: #e2e8f0; padding: 16px; width: min(560px, calc(100vw - 24px)); }
+    dialog.settings-dialog { border: 1px solid var(--color-bg-light-2); border-radius: 12px; background: var(--color-bg); color: var(--color-fg-light); padding: 16px; width: min(560px, calc(100vw - 24px)); }
     dialog.settings-dialog::backdrop { background: rgba(2, 6, 23, 0.7); }
     .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
-    .settings-field label { display: block; margin-bottom: 6px; font-size: 13px; color: #94a3b8; }
+    .settings-field label { display: block; margin-bottom: 6px; font-size: 13px; color: var(--color-gray); }
     .settings-field input { width: 100%; box-sizing: border-box; }
     .settings-field .datetime-input { width: 100%; }
     .settings-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
-    .settings-msg { min-height: 20px; margin-top: 8px; color: #94a3b8; }
+    .settings-msg { min-height: 20px; margin-top: 8px; color: var(--color-gray); }
+    .theme-toggle { border: 1px solid var(--color-bg-light-3); background: var(--color-bg-soft); color: var(--color-fg-lightest); padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+    .theme-toggle:hover { border-color: var(--color-blue); color: var(--color-blue); }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="row">
+    <div class="page-header">
       <h1 class="title">API Key 管理</h1>
-      <div class="spacer"></div>
-      <button id="refresh" class="secondary">刷新</button>
-      <button id="logout" class="danger">退出登录</button>
+      <div>
+        <button id="theme-toggle" class="theme-toggle" type="button">
+          <span id="theme-icon">🌞</span>
+          <span id="theme-label">Light</span>
+        </button>
+        <button id="refresh" class="secondary">刷新</button>
+        <button id="logout" class="danger">退出登录</button>
+      </div>
     </div>
 
     <div class="card">
@@ -149,6 +289,7 @@ const adminPage = `<!doctype html>
             <th>ID</th>
             <th>Key 预览</th>
             <th>创建时间</th>
+            <th>累计用量</th>
             <th>总上限（次）</th>
             <th>单日上限（次）</th>
             <th>过期时间</th>
@@ -187,6 +328,10 @@ const adminPage = `<!doctype html>
     const rows = document.getElementById("rows");
     const newToken = document.getElementById("new-token");
     const keyNameInput = document.getElementById("key-name");
+    const themeToggle = document.getElementById("theme-toggle");
+    const themeIcon = document.getElementById("theme-icon");
+    const themeLabel = document.getElementById("theme-label");
+    const THEME_STORAGE_KEY = "copilot-admin-theme";
     const settingsDialog = document.getElementById("settings-dialog");
     const settingsTitle = document.getElementById("settings-title");
     const settingsTotalLimitInput = document.getElementById("settings-total-limit");
@@ -237,6 +382,13 @@ const adminPage = `<!doctype html>
       });
     }
 
+    function applyTheme(theme) {
+      const resolved = theme === "dark" ? "dark" : "light";
+      document.documentElement.setAttribute("data-theme", resolved);
+      themeIcon.textContent = resolved === "dark" ? "🌙" : "🌞";
+      themeLabel.textContent = resolved === "dark" ? "Dark" : "Light";
+    }
+
     async function copyText(value) {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(value);
@@ -269,6 +421,7 @@ const adminPage = `<!doctype html>
           "<td>" + item.id + "</td>" +
           "<td>" + item.prefix + "</td>" +
           "<td>" + item.createdAt + "</td>" +
+          "<td>" + (item.totalUsage ?? 0) + "</td>" +
           "<td>" + (item.totalLimit ?? "-") + "</td>" +
           "<td>" + (item.dailyLimit ?? "-") + "</td>" +
           "<td>" + (item.expiresAt ?? "-") + "</td>" +
@@ -389,6 +542,16 @@ const adminPage = `<!doctype html>
       location.href = "/admin/login";
     });
 
+    themeToggle.addEventListener("click", () => {
+      const current =
+        document.documentElement.getAttribute("data-theme") ?? "light";
+      const nextTheme = current === "dark" ? "light" : "dark";
+      localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+      applyTheme(nextTheme);
+    });
+
+    applyTheme(localStorage.getItem(THEME_STORAGE_KEY) ?? "light");
+
     enableDatetimePickerClick();
     loadKeys();
   </script>
@@ -397,29 +560,89 @@ const adminPage = `<!doctype html>
 
 // eslint-disable-next-line max-lines-per-function
 const settingsPage = (keyId: string): string => `<!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="light">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>API Key 设置</title>
+  <script>
+    (function () {
+      const stored = localStorage.getItem("copilot-admin-theme") ?? "light";
+      document.documentElement.setAttribute(
+        "data-theme",
+        stored === "dark" ? "dark" : "light",
+      );
+    })();
+  </script>
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: #0f172a; color: #e2e8f0; }
+    :root {
+      --color-red: #cc241d;
+      --color-green: #98971a;
+      --color-yellow: #d79921;
+      --color-blue: #458588;
+      --color-purple: #b16286;
+      --color-aqua: #689d6a;
+      --color-orange: #d65d0e;
+      --color-gray: #a89984;
+      --color-bg-darkest: #1d2021;
+      --color-bg: #282828;
+      --color-bg-light-1: #3c3836;
+      --color-bg-light-2: #504945;
+      --color-bg-light-3: #665c54;
+      --color-bg-soft: #32302f;
+      --color-fg-dark: #bdae93;
+      --color-fg-medium: #d5c4a1;
+      --color-fg-light: #ebdbb2;
+      --color-fg-lightest: #fbf1c7;
+    }
+
+    [data-theme="light"] {
+      --color-red: #b91c1c;
+      --color-green: #15803d;
+      --color-yellow: #b45309;
+      --color-blue: #2563eb;
+      --color-purple: #7c3aed;
+      --color-aqua: #0f766e;
+      --color-orange: #c2410c;
+      --color-gray: #64748b;
+      --color-bg-darkest: #f7f9fc;
+      --color-bg: #f1f5f9;
+      --color-bg-light-1: #e2e8f0;
+      --color-bg-light-2: #d7dee8;
+      --color-bg-light-3: #cbd5e1;
+      --color-bg-soft: #f1f5f9;
+      --color-fg-dark: #1f2937;
+      --color-fg-medium: #334155;
+      --color-fg-light: #475569;
+      --color-fg-lightest: #0f172a;
+    }
+
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: var(--color-bg-darkest); color: var(--color-fg-light); }
     .container { max-width: 760px; margin: 30px auto; padding: 0 16px; }
-    .card { background: #111827; border: 1px solid #334155; border-radius: 12px; padding: 16px; }
+    .card { background: var(--color-bg-soft); border: 1px solid var(--color-bg-light-2); border-radius: 12px; padding: 16px; }
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    label { display:block; margin-bottom: 6px; font-size: 13px; color: #94a3b8; }
-    input { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 8px; border: 1px solid #475569; background: #0b1220; color: #e2e8f0; color-scheme: dark; }
-    input[type="datetime-local"] { padding-right: 40px; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e2e8f0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='4' width='18' height='18' rx='2' ry='2'/><line x1='16' y1='2' x2='16' y2='6'/><line x1='8' y1='2' x2='8' y2='6'/><line x1='3' y1='10' x2='21' y2='10'/></svg>"); background-repeat: no-repeat; background-position: right 12px center; background-size: 18px 18px; }
+    label { display:block; margin-bottom: 6px; font-size: 13px; color: var(--color-gray); }
+    input { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--color-bg-light-3); background: var(--color-bg-darkest); color: var(--color-fg-medium); color-scheme: dark; }
+    input[type="datetime-local"] { padding-right: 40px; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d5c4a1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='4' width='18' height='18' rx='2' ry='2'/><line x1='16' y1='2' x2='16' y2='6'/><line x1='8' y1='2' x2='8' y2='6'/><line x1='3' y1='10' x2='21' y2='10'/></svg>"); background-repeat: no-repeat; background-position: right 12px center; background-size: 18px 18px; }
     input[type="datetime-local"]::-webkit-calendar-picker-indicator { opacity: 0; cursor: pointer; }
     .row { display:flex; gap:10px; margin-top: 12px; }
-    button { padding: 10px 12px; border: none; border-radius: 8px; background: #2563eb; color: white; font-weight: 600; cursor: pointer; }
-    button.secondary { background: #334155; }
-    .msg { margin-top: 12px; min-height: 20px; }
+    button { padding: 10px 12px; border: none; border-radius: 8px; background: var(--color-blue); color: var(--color-bg-darkest); font-weight: 600; cursor: pointer; }
+    button.secondary { background: var(--color-bg-light-2); color: var(--color-fg-lightest); }
+    .msg { margin-top: 12px; min-height: 20px; color: var(--color-gray); }
+    .page-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .theme-toggle { border: 1px solid var(--color-bg-light-3); background: var(--color-bg-soft); color: var(--color-fg-lightest); padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+    .theme-toggle:hover { border-color: var(--color-blue); color: var(--color-blue); }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>设置 API Key：${keyId}</h1>
+    <div class="page-header">
+      <h1>设置 API Key：${keyId}</h1>
+      <button id="theme-toggle" class="theme-toggle" type="button">
+        <span id="theme-icon">🌞</span>
+        <span id="theme-label">Light</span>
+      </button>
+    </div>
     <div class="card">
       <div class="grid">
         <div>
@@ -448,6 +671,10 @@ const settingsPage = (keyId: string): string => `<!doctype html>
     const totalLimitInput = document.getElementById("total-limit");
     const dailyLimitInput = document.getElementById("daily-limit");
     const expiresAtInput = document.getElementById("expires-at");
+    const themeToggle = document.getElementById("theme-toggle");
+    const themeIcon = document.getElementById("theme-icon");
+    const themeLabel = document.getElementById("theme-label");
+    const THEME_STORAGE_KEY = "copilot-admin-theme";
 
     const toNullableNumber = (value) => {
       const trimmed = String(value || "").trim();
@@ -471,6 +698,13 @@ const settingsPage = (keyId: string): string => `<!doctype html>
           }
         });
       });
+    }
+
+    function applyTheme(theme) {
+      const resolved = theme === "dark" ? "dark" : "light";
+      document.documentElement.setAttribute("data-theme", resolved);
+      themeIcon.textContent = resolved === "dark" ? "🌙" : "🌞";
+      themeLabel.textContent = resolved === "dark" ? "Dark" : "Light";
     }
 
     async function loadCurrent() {
@@ -506,6 +740,16 @@ const settingsPage = (keyId: string): string => `<!doctype html>
       location.href = "/admin";
     });
 
+    themeToggle.addEventListener("click", () => {
+      const current =
+        document.documentElement.getAttribute("data-theme") ?? "light";
+      const nextTheme = current === "dark" ? "light" : "dark";
+      localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+      applyTheme(nextTheme);
+    });
+
+    applyTheme(localStorage.getItem(THEME_STORAGE_KEY) ?? "light");
+
     enableDatetimePickerClick();
     loadCurrent();
   </script>
@@ -514,61 +758,121 @@ const settingsPage = (keyId: string): string => `<!doctype html>
 
 // eslint-disable-next-line max-lines-per-function
 const usagePage = (keyId: string): string => `<!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="light">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>API Key 用量</title>
+  <script>
+    (function () {
+      const stored = localStorage.getItem("copilot-admin-theme") ?? "light";
+      document.documentElement.setAttribute(
+        "data-theme",
+        stored === "dark" ? "dark" : "light",
+      );
+    })();
+  </script>
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: #0f172a; color: #e2e8f0; }
+    :root {
+      --color-red: #cc241d;
+      --color-green: #98971a;
+      --color-yellow: #d79921;
+      --color-blue: #458588;
+      --color-purple: #b16286;
+      --color-aqua: #689d6a;
+      --color-orange: #d65d0e;
+      --color-gray: #a89984;
+      --color-bg-darkest: #1d2021;
+      --color-bg: #282828;
+      --color-bg-light-1: #3c3836;
+      --color-bg-light-2: #504945;
+      --color-bg-light-3: #665c54;
+      --color-bg-soft: #32302f;
+      --color-fg-dark: #bdae93;
+      --color-fg-medium: #d5c4a1;
+      --color-fg-light: #ebdbb2;
+      --color-fg-lightest: #fbf1c7;
+    }
+
+    [data-theme="light"] {
+      --color-red: #b91c1c;
+      --color-green: #15803d;
+      --color-yellow: #b45309;
+      --color-blue: #2563eb;
+      --color-purple: #7c3aed;
+      --color-aqua: #0f766e;
+      --color-orange: #c2410c;
+      --color-gray: #64748b;
+      --color-bg-darkest: #f7f9fc;
+      --color-bg: #f1f5f9;
+      --color-bg-light-1: #e2e8f0;
+      --color-bg-light-2: #d7dee8;
+      --color-bg-light-3: #cbd5e1;
+      --color-bg-soft: #f1f5f9;
+      --color-fg-dark: #1f2937;
+      --color-fg-medium: #334155;
+      --color-fg-light: #475569;
+      --color-fg-lightest: #0f172a;
+    }
+
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: var(--color-bg-darkest); color: var(--color-fg-light); }
     .container { max-width: 1400px; margin: 20px auto; padding: 0 16px; }
-    .card { background: #111827; border: 1px solid #334155; border-radius: 12px; padding: 16px; margin-top: 16px; }
+    .card { background: var(--color-bg-soft); border: 1px solid var(--color-bg-light-2); border-radius: 12px; padding: 16px; margin-top: 16px; }
     .row { display:flex; gap:10px; flex-wrap: wrap; }
-    input, select { padding: 10px 12px; border-radius: 8px; border: 1px solid #475569; background: #0b1220; color: #e2e8f0; }
+    input, select { padding: 10px 12px; border-radius: 8px; border: 1px solid var(--color-bg-light-3); background: var(--color-bg-darkest); color: var(--color-fg-medium); }
     input[type="datetime-local"] { color-scheme: dark; }
     input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert(1) brightness(1.4); opacity: 0.9; cursor: pointer; }
-    button { padding: 10px 12px; border: none; border-radius: 8px; background: #2563eb; color: white; font-weight: 600; cursor: pointer; }
-    button.secondary { background: #334155; }
+    button { padding: 10px 12px; border: none; border-radius: 8px; background: var(--color-blue); color: var(--color-bg-darkest); font-weight: 600; cursor: pointer; }
+    button.secondary { background: var(--color-bg-light-2); color: var(--color-fg-lightest); }
     button.icon { display: inline-flex; align-items: center; gap: 6px; }
-    .summary { margin-top: 10px; color: #94a3b8; }
-    .chart-wrap { margin-top: 12px; border: 1px solid #334155; border-radius: 8px; padding: 8px; background: #0b1220; }
+    .page-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .summary { margin-top: 10px; color: var(--color-gray); }
+    .chart-wrap { margin-top: 12px; border: 1px solid var(--color-bg-light-2); border-radius: 8px; padding: 8px; background: var(--color-bg-darkest); }
     .chart-scroll { width: 100%; overflow-x: auto; overflow-y: hidden; }
-    .chart-title { font-size: 13px; color: #94a3b8; margin: 0 0 8px; }
-    .zoom-info { font-size: 12px; color: #94a3b8; margin: 0 0 8px; }
-    .chart-empty { color: #94a3b8; font-size: 13px; padding: 12px; }
+    .chart-title { font-size: 13px; color: var(--color-gray); margin: 0 0 8px; }
+    .zoom-info { font-size: 12px; color: var(--color-gray); margin: 0 0 8px; }
+    .chart-empty { color: var(--color-gray); font-size: 13px; padding: 12px; }
     .chart-toolbar { display: flex; gap: 8px; margin-bottom: 8px; }
     #usage-chart { width: 100%; height: 420px; display: block; }
     .drp-wrap { position: relative; display: inline-block; }
-    .drp-btn { background: #0b1220; border: 1px solid #475569; color: #e2e8f0; border-radius: 8px; padding: 10px 14px; cursor: pointer; font-size: 14px; font-weight: 400; min-width: 228px; text-align: left; white-space: nowrap; }
-    .drp-btn.drp-placeholder { color: #64748b; }
-    .drp-btn.drp-active { border-color: #2563eb; outline: none; }
-    .drp-panel { position: absolute; top: calc(100% + 6px); left: 0; z-index: 1000; background: #111827; border: 1px solid #334155; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 8px 32px rgba(0,0,0,.7); }
+    .drp-btn { background: var(--color-bg-darkest); border: 1px solid var(--color-bg-light-3); color: var(--color-fg-medium); border-radius: 8px; padding: 10px 14px; cursor: pointer; font-size: 14px; font-weight: 400; min-width: 228px; text-align: left; white-space: nowrap; }
+    .drp-btn.drp-placeholder { color: var(--color-gray); }
+    .drp-btn.drp-active { border-color: var(--color-blue); outline: none; }
+    .drp-panel { position: absolute; top: calc(100% + 6px); left: 0; z-index: 1000; background: var(--color-bg); border: 1px solid var(--color-bg-light-2); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 8px 32px rgba(0,0,0,.7); }
     .drp-shortcuts { display: flex; flex-wrap: wrap; gap: 8px; }
-    .drp-shortcut { background: #0b1220; border: 1px solid #334155; color: #e2e8f0; border-radius: 999px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
-    .drp-shortcut:hover { border-color: #2563eb; color: #bfdbfe; }
+    .drp-shortcut { background: var(--color-bg-darkest); border: 1px solid var(--color-bg-light-2); color: var(--color-fg-medium); border-radius: 999px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+    .drp-shortcut:hover { border-color: var(--color-blue); color: var(--color-blue); }
     .drp-calendars { display: flex; gap: 20px; }
     .drp-cal { flex: 0 0 auto; }
     .drp-cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; min-width: 196px; }
-    .drp-nav-btn { background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 18px; line-height: 1; padding: 2px 7px; border-radius: 4px; }
-    .drp-nav-btn:hover { background: #334155; color: #e2e8f0; }
-    .drp-month-label { font-weight: 600; color: #e2e8f0; font-size: 14px; }
+    .drp-nav-btn { background: none; border: none; color: var(--color-gray); cursor: pointer; font-size: 18px; line-height: 1; padding: 2px 7px; border-radius: 4px; }
+    .drp-nav-btn:hover { background: var(--color-bg-light-2); color: var(--color-fg-lightest); }
+    .drp-month-label { font-weight: 600; color: var(--color-fg-lightest); font-size: 14px; }
     .drp-weekdays, .drp-days { display: grid; grid-template-columns: repeat(7, 28px); }
-    .drp-weekdays { text-align: center; font-size: 11px; color: #64748b; margin-bottom: 3px; }
-    .drp-day { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 13px; cursor: pointer; border-radius: 4px; color: #cbd5e1; border: none; background: none; padding: 0; }
-    .drp-day:not(.drp-day-empty):not(.drp-day-other):hover { background: #334155; }
-    .drp-day-start, .drp-day-end { background: #2563eb !important; color: #fff !important; font-weight: 700; border-radius: 4px !important; }
-    .drp-day-in-range { background: rgba(37,99,235,0.18); color: #93c5fd; border-radius: 0; }
-    .drp-day-today:not(.drp-day-start):not(.drp-day-end) { outline: 1px solid #475569; outline-offset: -2px; }
+    .drp-weekdays { text-align: center; font-size: 11px; color: var(--color-gray); margin-bottom: 3px; }
+    .drp-day { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 13px; cursor: pointer; border-radius: 4px; color: var(--color-fg-medium); border: none; background: none; padding: 0; }
+    .drp-day:not(.drp-day-empty):not(.drp-day-other):hover { background: var(--color-bg-light-2); }
+    .drp-day-start, .drp-day-end { background: var(--color-blue) !important; color: var(--color-bg-darkest) !important; font-weight: 700; border-radius: 4px !important; }
+    .drp-day-in-range { background: rgba(69,133,136,0.18); color: var(--color-blue); border-radius: 0; }
+    .drp-day-today:not(.drp-day-start):not(.drp-day-end) { outline: 1px solid var(--color-bg-light-3); outline-offset: -2px; }
     .drp-day-empty, .drp-day-other { opacity: 0; pointer-events: none; }
-    .drp-status { font-size: 12px; color: #94a3b8; text-align: center; }
+    .drp-status { font-size: 12px; color: var(--color-gray); text-align: center; }
     .drp-footer { display: flex; justify-content: flex-end; }
     table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { text-align: left; border-bottom: 1px solid #334155; padding: 10px 8px; }
+    th, td { text-align: left; border-bottom: 1px solid var(--color-bg-light-2); padding: 10px 8px; }
+    .theme-toggle { border: 1px solid var(--color-bg-light-3); background: var(--color-bg-soft); color: var(--color-fg-lightest); padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+    .theme-toggle:hover { border-color: var(--color-blue); color: var(--color-blue); }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>用量统计：${keyId}</h1>
+    <div class="page-header">
+      <h1>用量统计：${keyId}</h1>
+      <button id="theme-toggle" class="theme-toggle" type="button">
+        <span id="theme-icon">🌞</span>
+        <span id="theme-label">Light</span>
+      </button>
+    </div>
     <div class="card">
       <div class="row">
         <select id="granularity">
@@ -632,6 +936,10 @@ const usagePage = (keyId: string): string => `<!doctype html>
     const drpStatus = document.getElementById("drp-status");
     const drpCalLeft = document.getElementById("drp-cal-left");
     const drpCalRight = document.getElementById("drp-cal-right");
+    const themeToggle = document.getElementById("theme-toggle");
+    const themeIcon = document.getElementById("theme-icon");
+    const themeLabel = document.getElementById("theme-label");
+    const THEME_STORAGE_KEY = "copilot-admin-theme";
     const granularityInput = document.getElementById("granularity");
     const zoomInButton = document.getElementById("zoom-in");
     const zoomOutButton = document.getElementById("zoom-out");
@@ -661,6 +969,13 @@ const usagePage = (keyId: string): string => `<!doctype html>
 
     const DRP_WEEKDAYS = ["一","二","三","四","五","六","日"];
     const DRP_MONTHS = ["一月","二月","三月","四月","五月","六月","七月","八月","九月","十月","十一月","十二月"];
+
+    function applyTheme(theme) {
+      const resolved = theme === "dark" ? "dark" : "light";
+      document.documentElement.setAttribute("data-theme", resolved);
+      themeIcon.textContent = resolved === "dark" ? "🌙" : "🌞";
+      themeLabel.textContent = resolved === "dark" ? "Dark" : "Light";
+    }
 
     function drpFormatDate(d) {
       return d ? d.getFullYear() + "/" + pad(d.getMonth() + 1) + "/" + pad(d.getDate()) : "";
@@ -1260,6 +1575,16 @@ const usagePage = (keyId: string): string => `<!doctype html>
       location.href = "/admin";
     });
 
+    themeToggle.addEventListener("click", () => {
+      const current =
+        document.documentElement.getAttribute("data-theme") ?? "light";
+      const nextTheme = current === "dark" ? "light" : "dark";
+      localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+      applyTheme(nextTheme);
+    });
+
+    applyTheme(localStorage.getItem(THEME_STORAGE_KEY) ?? "light");
+
     drpUpdateLabel();
     applyQuickRange("last_month", { skipQuery: true, closePanel: true });
     queryUsage();
@@ -1346,7 +1671,13 @@ adminRoutes.use("/api-keys", requireAdminAuth())
 
 adminRoutes.get("/api-keys", async (c) => {
   const items = await listManagedApiKeys()
-  return c.json({ items })
+  const itemsWithUsage = await Promise.all(
+    items.map(async (item) => {
+      const usage = await getManagedApiKeyUsageSummary(item.id)
+      return { ...item, totalUsage: usage.total }
+    }),
+  )
+  return c.json({ items: itemsWithUsage })
 })
 
 adminRoutes.get("/api-keys/:id", async (c) => {

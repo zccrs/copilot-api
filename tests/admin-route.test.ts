@@ -183,6 +183,7 @@ describe("adminRoutes", () => {
         totalLimit: number | null
         dailyLimit: number | null
         expiresAt: string | null
+        totalUsage: number
       }>
     }
 
@@ -191,6 +192,7 @@ describe("adminRoutes", () => {
     expect(created?.totalLimit).toBe(100)
     expect(created?.dailyLimit).toBe(10)
     expect(created?.expiresAt).toBe(expiresAt)
+    expect(created?.totalUsage).toBe(0)
   })
 
   test("returns usage stats by time range", async () => {

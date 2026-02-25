@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -56,11 +56,63 @@
         --color-fg-lightest: #fbf1c7; /* fg0 */
       }
 
+      [data-theme="light"] {
+        --color-red: #cc241d;
+        --color-green: #427b58;
+        --color-yellow: #b57614;
+        --color-blue: #076678;
+        --color-purple: #8f3f71;
+        --color-aqua: #427b58;
+        --color-orange: #af3a03;
+        --color-gray: #7c6f64;
+
+        --color-red-accent: #9d0006;
+        --color-green-accent: #79740e;
+        --color-yellow-accent: #b57614;
+        --color-blue-accent: #076678;
+        --color-purple-accent: #8f3f71;
+        --color-aqua-accent: #427b58;
+        --color-orange-accent: #af3a03;
+        --color-gray-accent: #928374;
+
+        --color-bg-darkest: #fbf1c7;
+        --color-bg: #f9f5d7;
+        --color-bg-light-1: #f2e5bc;
+        --color-bg-light-2: #ebdbb2;
+        --color-bg-light-3: #e0cfa9;
+        --color-bg-light-4: #d5c4a1;
+        --color-bg-soft: #f2e5bc;
+
+        --color-fg-darker: #7c6f64;
+        --color-fg-dark: #665c54;
+        --color-fg-medium: #504945;
+        --color-fg-light: #3c3836;
+        --color-fg-lightest: #282828;
+      }
+
       /* Custom styles using the new palette */
       body {
         font-family: "Inter", sans-serif;
         background-color: var(--color-bg-darkest);
         color: var(--color-fg-light);
+      }
+
+      .theme-toggle {
+        border: 1px solid var(--color-bg-light-3);
+        background: var(--color-bg-soft);
+        color: var(--color-fg-lightest);
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .theme-toggle:hover {
+        border-color: var(--color-blue);
+        color: var(--color-blue);
       }
 
       /* Custom progress bar styles */
@@ -99,35 +151,41 @@
     <div id="app" class="min-h-screen p-4 sm:p-6">
       <div class="max-w-7xl mx-auto">
         <!-- Header Section -->
-        <header class="mb-6">
-          <h1
-            class="text-2xl font-bold flex items-center gap-2"
-            style="color: var(--color-fg-lightest)"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              class="lucide lucide-gauge-circle h-7 w-7"
-              style="color: var(--color-aqua-accent)"
+        <header class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1
+              class="text-2xl font-bold flex items-center gap-2"
+              style="color: var(--color-fg-lightest)"
             >
-              <path d="M15.6 3.3a10 10 0 1 0 5.1 5.1" />
-              <path
-                d="M12 12a1 1 0 0 0-1-1v4a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1h-3z"
-              />
-              <path d="M12 6.8a10 10 0 0 0 -3.2 7.2" />
-            </svg>
-            <span>Copilot API Usage Dashboard</span>
-          </h1>
-          <p class="mt-1 text-sm" style="color: var(--color-gray)">
-            Should be the same as the one in VSCode
-          </p>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="lucide lucide-gauge-circle h-7 w-7"
+                style="color: var(--color-aqua-accent)"
+              >
+                <path d="M15.6 3.3a10 10 0 1 0 5.1 5.1" />
+                <path
+                  d="M12 12a1 1 0 0 0-1-1v4a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1h-3z"
+                />
+                <path d="M12 6.8a10 10 0 0 0 -3.2 7.2" />
+              </svg>
+              <span>Copilot API Usage Dashboard</span>
+            </h1>
+            <p class="mt-1 text-sm" style="color: var(--color-gray)">
+              Should be the same as the one in VSCode
+            </p>
+          </div>
+          <button id="theme-toggle" class="theme-toggle" type="button">
+            <span id="theme-icon">🌞</span>
+            <span id="theme-label">Light</span>
+          </button>
         </header>
 
         <!-- Form Section -->
@@ -201,6 +259,9 @@
         const endpointUrlInput = document.getElementById("endpoint-url");
         const contentArea = document.getElementById("content-area");
         const fetchButton = document.getElementById("fetch-button");
+        const themeToggle = document.getElementById("theme-toggle");
+        const themeIcon = document.getElementById("theme-icon");
+        const themeLabel = document.getElementById("theme-label");
 
         // Apply hover effect for fetch button via JS
         fetchButton.addEventListener("mouseenter", () => {
@@ -211,6 +272,7 @@
         });
 
         const DEFAULT_ENDPOINT = "http://localhost:4141/usage";
+        const THEME_STORAGE_KEY = "copilot-usage-theme";
 
         // --- State Management ---
         const state = {
@@ -502,6 +564,16 @@
          */
         function init() {
           endpointForm.addEventListener("submit", handleFormSubmit);
+          themeToggle.addEventListener("click", () => {
+            const current =
+              document.documentElement.getAttribute("data-theme") ?? "light";
+            const nextTheme = current === "dark" ? "light" : "dark";
+            localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+            applyTheme(nextTheme);
+          });
+
+          const storedTheme = localStorage.getItem(THEME_STORAGE_KEY) ?? "light";
+          applyTheme(storedTheme);
 
           // Get endpoint from URL param on load
           const urlParams = new URLSearchParams(window.location.search);
@@ -554,3 +626,9 @@
     </footer>
   </body>
 </html>
+        function applyTheme(theme) {
+          const resolved = theme === "dark" ? "dark" : "light";
+          document.documentElement.setAttribute("data-theme", resolved);
+          themeIcon.textContent = resolved === "dark" ? "🌙" : "🌞";
+          themeLabel.textContent = resolved === "dark" ? "Dark" : "Light";
+        }
