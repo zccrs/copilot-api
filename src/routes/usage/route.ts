@@ -1,8 +1,11 @@
 import { Hono } from "hono"
+import { Hono } from "hono"
 
+import { requireAdminAuth } from "~/lib/admin-auth"
 import { getCopilotUsage } from "~/services/github/get-copilot-usage"
-
 export const usageRoute = new Hono()
+
+usageRoute.use("*", requireAdminAuth())
 
 usageRoute.get("/", async (c) => {
   try {

@@ -1,8 +1,11 @@
 import { Hono } from "hono"
 
+import { requireAdminAuth } from "~/lib/admin-auth"
 import { state } from "~/lib/state"
 
 export const tokenRoute = new Hono()
+
+tokenRoute.use("*", requireAdminAuth())
 
 tokenRoute.get("/", (c) => {
   try {

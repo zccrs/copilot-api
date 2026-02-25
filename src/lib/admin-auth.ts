@@ -15,10 +15,12 @@ interface AdminCredentials {
 }
 
 const getAdminCredentials = (): AdminCredentials | null => {
-  const username = process.env[ADMIN_USERNAME_ENV]?.trim()
-  const password = process.env[ADMIN_PASSWORD_ENV]
+  const rawUsername = process.env[ADMIN_USERNAME_ENV]
+  const rawPassword = process.env[ADMIN_PASSWORD_ENV]
+  const username = rawUsername?.trim() ?? ""
+  const password = rawPassword ?? ""
 
-  if (!username || !password) {
+  if (username === "" && password === "") {
     return null
   }
 
@@ -89,7 +91,7 @@ export const validateAdminCredentials = (
 ): boolean => {
   const credentials = getAdminCredentials()
   if (!credentials) {
-    return false
+    return true
   }
 
   return username === credentials.username && password === credentials.password
@@ -117,6 +119,9 @@ export const clearAdminSession = (c: Context): void => {
 }
 
 export const isAdminAuthenticated = (c: Context): boolean => {
+  if (!isAdminConfigured()) {
+    return true
+  }
   const token = getCookie(c, SESSION_COOKIE_NAME)
   if (!token) {
     return false
@@ -127,6 +132,9 @@ export const isAdminAuthenticated = (c: Context): boolean => {
 
 export const requireAdminAuth = (): MiddlewareHandler => {
   return async (c, next) => {
+    if (!isAdminConfigured()) {
+      return next()
+    }
     if (!isAdminAuthenticated(c)) {
       return c.json({ error: "Unauthorized" }, 401)
     }

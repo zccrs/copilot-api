@@ -111,9 +111,9 @@ const loginPage = `<!doctype html>
     </div>
     <form id="login-form">
       <label for="username">用户名</label>
-      <input id="username" name="username" required autocomplete="username" />
+      <input id="username" name="username" autocomplete="username" />
       <label for="password">密码</label>
-      <input id="password" name="password" type="password" required autocomplete="current-password" />
+      <input id="password" name="password" type="password" autocomplete="current-password" />
       <button type="submit">登录</button>
       <div class="error" id="error"></div>
     </form>
@@ -1593,6 +1593,9 @@ const usagePage = (keyId: string): string => `<!doctype html>
 </html>`
 
 adminRoutes.get("/login", (c) => {
+  if (!isAdminConfigured()) {
+    return c.redirect("/admin")
+  }
   if (isAdminAuthenticated(c)) {
     return c.redirect("/admin")
   }
@@ -1602,7 +1605,7 @@ adminRoutes.get("/login", (c) => {
 
 adminRoutes.post("/login", async (c) => {
   if (!isAdminConfigured()) {
-    return c.json({ error: "Admin credentials are not configured" }, 503)
+    return c.json({ ok: true })
   }
 
   const contentType = c.req.header("content-type") ?? ""

@@ -16,8 +16,6 @@ const PROTECTED_PATHS = [
   "/chat/completions",
   "/models",
   "/embeddings",
-  "/usage",
-  "/token",
   "/v1/chat/completions",
   "/v1/models",
   "/v1/embeddings",
