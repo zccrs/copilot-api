@@ -41,6 +41,7 @@ const loginAsAdmin = async (app: Hono): Promise<string> => {
   return response.headers.get("set-cookie") ?? ""
 }
 
+// eslint-disable-next-line max-lines-per-function
 describe("adminRoutes", () => {
   test("allows login with configured credentials", async () => {
     const app = await createApp()
@@ -142,5 +143,136 @@ describe("adminRoutes", () => {
     const payload = (await getResponse.json()) as { id: string; key: string }
     expect(payload.id).toBe(keyId)
     expect(payload.key.startsWith("cpk_")).toBe(true)
+  })
+
+  test("creates key with limits and expiration", async () => {
+    const app = await createApp()
+    const cookie = await loginAsAdmin(app)
+    const keyId = `limited-key-${Date.now()}`
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+
+    const createResponse = await app.request(
+      "http://localhost/admin/api-keys",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          Cookie: cookie,
+        },
+        body: JSON.stringify({
+          id: keyId,
+          totalLimit: 100,
+          dailyLimit: 10,
+          expiresAt,
+        }),
+      },
+    )
+
+    expect(createResponse.status).toBe(200)
+
+    const listResponse = await app.request("http://localhost/admin/api-keys", {
+      headers: {
+        Cookie: cookie,
+      },
+    })
+
+    expect(listResponse.status).toBe(200)
+    const listPayload = (await listResponse.json()) as {
+      items: Array<{
+        id: string
+        totalLimit: number | null
+        dailyLimit: number | null
+        expiresAt: string | null
+      }>
+    }
+
+    const created = listPayload.items.find((item) => item.id === keyId)
+    expect(created).toBeDefined()
+    expect(created?.totalLimit).toBe(100)
+    expect(created?.dailyLimit).toBe(10)
+    expect(created?.expiresAt).toBe(expiresAt)
+  })
+
+  test("returns usage stats by time range", async () => {
+    const app = await createApp()
+    const cookie = await loginAsAdmin(app)
+    const keyId = `usage-key-${Date.now()}`
+
+    await app.request("http://localhost/admin/api-keys", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        Cookie: cookie,
+      },
+      body: JSON.stringify({ id: keyId }),
+    })
+
+    const from = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+    const to = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+
+    const usageResponse = await app.request(
+      `http://localhost/admin/api-keys/${keyId}/usage?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+      {
+        headers: {
+          Cookie: cookie,
+        },
+      },
+    )
+
+    expect(usageResponse.status).toBe(200)
+    const payload = (await usageResponse.json()) as {
+      keyId: string
+      count: number
+      totalUsage: number
+      dailyUsage: number
+      records: Array<unknown>
+    }
+    expect(payload.keyId).toBe(keyId)
+    expect(payload.count).toBe(0)
+    expect(payload.totalUsage).toBe(0)
+    expect(payload.dailyUsage).toBe(0)
+    expect(payload.records.length).toBe(0)
+  })
+
+  test("updates key settings from dedicated endpoint", async () => {
+    const app = await createApp()
+    const cookie = await loginAsAdmin(app)
+    const keyId = `settings-key-${Date.now()}`
+
+    await app.request("http://localhost/admin/api-keys", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        Cookie: cookie,
+      },
+      body: JSON.stringify({ id: keyId }),
+    })
+
+    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
+    const updateResponse = await app.request(
+      `http://localhost/admin/api-keys/${keyId}/settings`,
+      {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+          Cookie: cookie,
+        },
+        body: JSON.stringify({
+          totalLimit: 200,
+          dailyLimit: 20,
+          expiresAt,
+        }),
+      },
+    )
+
+    expect(updateResponse.status).toBe(200)
+    const updated = (await updateResponse.json()) as {
+      totalLimit: number | null
+      dailyLimit: number | null
+      expiresAt: string | null
+    }
+    expect(updated.totalLimit).toBe(200)
+    expect(updated.dailyLimit).toBe(20)
+    expect(updated.expiresAt).toBe(expiresAt)
   })
 })

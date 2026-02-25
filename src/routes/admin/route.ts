@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import { Hono } from "hono"
 
 import {
@@ -12,8 +13,11 @@ import {
   createManagedApiKey,
   deleteManagedApiKey,
   getManagedApiKeyById,
+  getManagedApiKeyUsageByRange,
+  getManagedApiKeyUsageSummary,
   listManagedApiKeys,
   ManagedApiKeyError,
+  updateManagedApiKeySettings,
 } from "~/lib/api-key-store"
 
 export const adminRoutes = new Hono()
@@ -32,7 +36,10 @@ const loginPage = `<!doctype html>
     .container { max-width: 420px; margin: 80px auto; padding: 24px; background: #111827; border: 1px solid #334155; border-radius: 12px; }
     h1 { margin: 0 0 16px; font-size: 20px; }
     label { display: block; margin: 12px 0 6px; font-size: 14px; color: #cbd5e1; }
-    input { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 8px; border: 1px solid #475569; background: #0b1220; color: #e2e8f0; }
+    input { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 8px; border: 1px solid #475569; background: #0b1220; color: #e2e8f0; color-scheme: dark; }
+    .datetime-input { background: #0b1220; border: 1px solid #475569; color: #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 14px; font-weight: 400; min-width: 228px; text-align: left; white-space: nowrap; padding-right: 40px; box-sizing: border-box; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e2e8f0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='4' width='18' height='18' rx='2' ry='2'/><line x1='16' y1='2' x2='16' y2='6'/><line x1='8' y1='2' x2='8' y2='6'/><line x1='3' y1='10' x2='21' y2='10'/></svg>"); background-repeat: no-repeat; background-position: right 12px center; background-size: 18px 18px; }
+    .datetime-input:focus { border-color: #2563eb; outline: none; }
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator { opacity: 0; cursor: pointer; }
     button { margin-top: 16px; width: 100%; padding: 10px 12px; border: none; border-radius: 8px; background: #2563eb; color: white; font-weight: 600; cursor: pointer; }
     .error { margin-top: 12px; color: #f87171; min-height: 20px; font-size: 14px; }
   </style>
@@ -88,29 +95,49 @@ const adminPage = `<!doctype html>
   <title>Copilot API Admin</title>
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: #0f172a; color: #e2e8f0; }
-    .container { max-width: 900px; margin: 40px auto; padding: 24px; }
-    .toolbar { display: flex; gap: 12px; margin-bottom: 16px; }
-    .toolbar input { flex: 1; min-width: 240px; padding: 10px 12px; border-radius: 8px; border: 1px solid #475569; background: #0b1220; color: #e2e8f0; }
+    .container { max-width: 1080px; margin: 24px auto; padding: 0 16px; }
+    .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .title { margin: 0; font-size: 22px; }
+    .spacer { flex: 1; }
+    .card { background: #111827; border: 1px solid #334155; border-radius: 12px; padding: 16px; margin-top: 16px; }
+    .new-form { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; }
+    input { padding: 10px 12px; border-radius: 8px; border: 1px solid #475569; background: #0b1220; color: #e2e8f0; color-scheme: dark; }
+    .datetime-input { background: #0b1220; border: 1px solid #475569; color: #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 14px; font-weight: 400; min-width: 228px; text-align: left; white-space: nowrap; padding-right: 40px; box-sizing: border-box; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e2e8f0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='4' width='18' height='18' rx='2' ry='2'/><line x1='16' y1='2' x2='16' y2='6'/><line x1='8' y1='2' x2='8' y2='6'/><line x1='3' y1='10' x2='21' y2='10'/></svg>"); background-repeat: no-repeat; background-position: right 12px center; background-size: 18px 18px; }
+    .datetime-input:focus { border-color: #2563eb; outline: none; }
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator { opacity: 0; cursor: pointer; }
     button { padding: 10px 12px; border: none; border-radius: 8px; background: #2563eb; color: white; font-weight: 600; cursor: pointer; }
     button.danger { background: #dc2626; }
     button.secondary { background: #334155; }
-    .card { background: #111827; border: 1px solid #334155; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
     table { width: 100%; border-collapse: collapse; }
-    th, td { text-align: left; border-bottom: 1px solid #334155; padding: 10px 8px; }
+    th, td { text-align: left; border-bottom: 1px solid #334155; padding: 12px 8px; vertical-align: middle; }
     .muted { color: #94a3b8; font-size: 13px; }
-    .new-token { margin-top: 10px; word-break: break-all; color: #22c55e; }
+    .new-token { margin-top: 10px; word-break: break-all; color: #22c55e; min-height: 20px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 6px; }
+    dialog.settings-dialog { border: 1px solid #334155; border-radius: 12px; background: #111827; color: #e2e8f0; padding: 16px; width: min(560px, calc(100vw - 24px)); }
+    dialog.settings-dialog::backdrop { background: rgba(2, 6, 23, 0.7); }
+    .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+    .settings-field label { display: block; margin-bottom: 6px; font-size: 13px; color: #94a3b8; }
+    .settings-field input { width: 100%; box-sizing: border-box; }
+    .settings-field .datetime-input { width: 100%; }
+    .settings-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+    .settings-msg { min-height: 20px; margin-top: 8px; color: #94a3b8; }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="toolbar">
-      <input id="key-name" placeholder="输入 key 名称（如 claude-client）" />
-      <button id="create">新建 API Key</button>
-      <button id="refresh">刷新</button>
+    <div class="row">
+      <h1 class="title">API Key 管理</h1>
+      <div class="spacer"></div>
+      <button id="refresh" class="secondary">刷新</button>
       <button id="logout" class="danger">退出登录</button>
     </div>
 
     <div class="card">
+      <div class="new-form">
+        <input id="key-name" placeholder="输入 key 名称（如 claude-client）" />
+        <button id="create">新建 API Key</button>
+        <button id="clear" class="secondary">清空</button>
+      </div>
       <div class="muted">新建后只会显示一次完整 key，请立即保存。</div>
       <div class="new-token" id="new-token"></div>
     </div>
@@ -122,6 +149,9 @@ const adminPage = `<!doctype html>
             <th>ID</th>
             <th>Key 预览</th>
             <th>创建时间</th>
+            <th>总上限（次）</th>
+            <th>单日上限（次）</th>
+            <th>过期时间</th>
             <th>操作</th>
           </tr>
         </thead>
@@ -130,10 +160,82 @@ const adminPage = `<!doctype html>
     </div>
   </div>
 
+  <dialog id="settings-dialog" class="settings-dialog">
+    <h3 id="settings-title" style="margin:0 0 6px;">设置 API Key</h3>
+    <div class="settings-grid">
+      <div class="settings-field">
+        <label for="settings-total-limit">总上限（请求次数，可空）</label>
+        <input id="settings-total-limit" type="number" min="0" />
+      </div>
+      <div class="settings-field">
+        <label for="settings-daily-limit">单日上限（请求次数，可空）</label>
+        <input id="settings-daily-limit" type="number" min="0" />
+      </div>
+    </div>
+    <div class="settings-field" style="margin-top: 12px;">
+      <label for="settings-expires-at">过期时间（可空）</label>
+      <input id="settings-expires-at" type="datetime-local" class="datetime-input" />
+    </div>
+    <div id="settings-msg" class="settings-msg"></div>
+    <div class="settings-actions">
+      <button id="settings-cancel" class="secondary" type="button">取消</button>
+      <button id="settings-save" type="button">保存</button>
+    </div>
+  </dialog>
+
   <script>
     const rows = document.getElementById("rows");
     const newToken = document.getElementById("new-token");
     const keyNameInput = document.getElementById("key-name");
+    const settingsDialog = document.getElementById("settings-dialog");
+    const settingsTitle = document.getElementById("settings-title");
+    const settingsTotalLimitInput = document.getElementById("settings-total-limit");
+    const settingsDailyLimitInput = document.getElementById("settings-daily-limit");
+    const settingsExpiresAtInput = document.getElementById("settings-expires-at");
+    const settingsMsg = document.getElementById("settings-msg");
+    const settingsCancelButton = document.getElementById("settings-cancel");
+    const settingsSaveButton = document.getElementById("settings-save");
+    let currentSettingsKeyId = "";
+    let keyItems = [];
+
+    const pad = (n) => String(n).padStart(2, "0");
+    const toDatetimeLocal = (iso) => {
+      if (!iso) return "";
+      const date = new Date(iso);
+      return date.getFullYear() + "-" + pad(date.getMonth() + 1) + "-" + pad(date.getDate()) + "T" + pad(date.getHours()) + ":" + pad(date.getMinutes());
+    };
+    const toNullableNumber = (value) => {
+      const trimmed = String(value || "").trim();
+      if (!trimmed) return null;
+      const parsed = Number.parseInt(trimmed, 10);
+      return Number.isNaN(parsed) ? null : parsed;
+    };
+
+    function closeSettingsDialog() {
+      if (settingsDialog.open) {
+        settingsDialog.close();
+      }
+    }
+
+    function openSettingsDialog(item) {
+      currentSettingsKeyId = item.id;
+      settingsTitle.textContent = "设置 API Key：" + item.id;
+      settingsTotalLimitInput.value = item.totalLimit ?? "";
+      settingsDailyLimitInput.value = item.dailyLimit ?? "";
+      settingsExpiresAtInput.value = toDatetimeLocal(item.expiresAt);
+      settingsMsg.textContent = "";
+      settingsDialog.showModal();
+    }
+
+    function enableDatetimePickerClick() {
+      document.querySelectorAll('input[type="datetime-local"]').forEach((input) => {
+        input.addEventListener("click", () => {
+          if (typeof input.showPicker === "function") {
+            input.showPicker();
+          }
+        });
+      });
+    }
 
     async function copyText(value) {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -158,6 +260,7 @@ const adminPage = `<!doctype html>
 
       const data = await response.json();
       const items = Array.isArray(data.items) ? data.items : [];
+      keyItems = items;
       rows.innerHTML = "";
 
       for (const item of items) {
@@ -166,9 +269,15 @@ const adminPage = `<!doctype html>
           "<td>" + item.id + "</td>" +
           "<td>" + item.prefix + "</td>" +
           "<td>" + item.createdAt + "</td>" +
-          '<td>' +
-          '<button data-id="' + item.id + '" data-action="copy" class="secondary">复制</button> ' +
+          "<td>" + (item.totalLimit ?? "-") + "</td>" +
+          "<td>" + (item.dailyLimit ?? "-") + "</td>" +
+          "<td>" + (item.expiresAt ?? "-") + "</td>" +
+          '<td><div class="actions">' +
+          '<button data-id="' + item.id + '" data-action="settings" class="secondary">设置</button>' +
+          '<button data-id="' + item.id + '" data-action="usage" class="secondary">用量</button>' +
+          '<button data-id="' + item.id + '" data-action="copy" class="secondary">复制</button>' +
           '<button data-id="' + item.id + '" data-action="delete" class="danger">删除</button>' +
+          '</div>' +
           '</td>';
 
         tr.querySelectorAll("button").forEach((button) => {
@@ -182,6 +291,21 @@ const adminPage = `<!doctype html>
             if (action === "delete") {
               await fetch("/admin/api-keys/" + encodeURIComponent(id), { method: "DELETE" });
               await loadKeys();
+              return;
+            }
+
+            if (action === "settings") {
+              const target = keyItems.find((item) => item.id === id);
+              if (!target) {
+                newToken.textContent = "读取设置失败";
+                return;
+              }
+              openSettingsDialog(target);
+              return;
+            }
+
+            if (action === "usage") {
+              location.href = "/admin/api-keys/" + encodeURIComponent(id) + "/usage-view";
               return;
             }
 
@@ -227,13 +351,918 @@ const adminPage = `<!doctype html>
       await loadKeys();
     });
 
+    document.getElementById("clear").addEventListener("click", () => {
+      keyNameInput.value = "";
+      newToken.textContent = "";
+    });
+
     document.getElementById("refresh").addEventListener("click", loadKeys);
+    settingsCancelButton.addEventListener("click", closeSettingsDialog);
+    settingsSaveButton.addEventListener("click", async () => {
+      if (!currentSettingsKeyId) {
+        return;
+      }
+
+      const payload = {
+        totalLimit: toNullableNumber(settingsTotalLimitInput.value),
+        dailyLimit: toNullableNumber(settingsDailyLimitInput.value),
+        expiresAt: settingsExpiresAtInput.value ? new Date(settingsExpiresAtInput.value).toISOString() : null,
+      };
+
+      const response = await fetch("/admin/api-keys/" + encodeURIComponent(currentSettingsKeyId) + "/settings", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json().catch(() => ({ error: "保存失败" }));
+      if (!response.ok) {
+        settingsMsg.textContent = data.error || "保存失败";
+        return;
+      }
+
+      closeSettingsDialog();
+      await loadKeys();
+      newToken.textContent = "设置已保存: " + currentSettingsKeyId;
+    });
     document.getElementById("logout").addEventListener("click", async () => {
       await fetch("/admin/logout", { method: "POST" });
       location.href = "/admin/login";
     });
 
+    enableDatetimePickerClick();
     loadKeys();
+  </script>
+</body>
+</html>`
+
+// eslint-disable-next-line max-lines-per-function
+const settingsPage = (keyId: string): string => `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>API Key 设置</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: #0f172a; color: #e2e8f0; }
+    .container { max-width: 760px; margin: 30px auto; padding: 0 16px; }
+    .card { background: #111827; border: 1px solid #334155; border-radius: 12px; padding: 16px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    label { display:block; margin-bottom: 6px; font-size: 13px; color: #94a3b8; }
+    input { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 8px; border: 1px solid #475569; background: #0b1220; color: #e2e8f0; color-scheme: dark; }
+    input[type="datetime-local"] { padding-right: 40px; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e2e8f0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='4' width='18' height='18' rx='2' ry='2'/><line x1='16' y1='2' x2='16' y2='6'/><line x1='8' y1='2' x2='8' y2='6'/><line x1='3' y1='10' x2='21' y2='10'/></svg>"); background-repeat: no-repeat; background-position: right 12px center; background-size: 18px 18px; }
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator { opacity: 0; cursor: pointer; }
+    .row { display:flex; gap:10px; margin-top: 12px; }
+    button { padding: 10px 12px; border: none; border-radius: 8px; background: #2563eb; color: white; font-weight: 600; cursor: pointer; }
+    button.secondary { background: #334155; }
+    .msg { margin-top: 12px; min-height: 20px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>设置 API Key：${keyId}</h1>
+    <div class="card">
+      <div class="grid">
+        <div>
+          <label>总上限（请求次数，可空）</label>
+          <input id="total-limit" type="number" min="0" />
+        </div>
+        <div>
+          <label>单日上限（请求次数，可空）</label>
+          <input id="daily-limit" type="number" min="0" />
+        </div>
+      </div>
+      <div style="margin-top:12px;">
+        <label>过期时间（可空）</label>
+        <input id="expires-at" type="datetime-local" class="datetime-input" />
+      </div>
+      <div class="row">
+        <button id="save">保存</button>
+        <button id="back" class="secondary">返回</button>
+      </div>
+      <div id="msg" class="msg"></div>
+    </div>
+  </div>
+  <script>
+    const keyId = ${JSON.stringify(keyId)};
+    const msg = document.getElementById("msg");
+    const totalLimitInput = document.getElementById("total-limit");
+    const dailyLimitInput = document.getElementById("daily-limit");
+    const expiresAtInput = document.getElementById("expires-at");
+
+    const toNullableNumber = (value) => {
+      const trimmed = String(value || "").trim();
+      if (!trimmed) return null;
+      const parsed = Number.parseInt(trimmed, 10);
+      return Number.isNaN(parsed) ? null : parsed;
+    };
+
+    const toDatetimeLocal = (iso) => {
+      if (!iso) return "";
+      const date = new Date(iso);
+      const pad = (n) => String(n).padStart(2, "0");
+      return date.getFullYear() + "-" + pad(date.getMonth() + 1) + "-" + pad(date.getDate()) + "T" + pad(date.getHours()) + ":" + pad(date.getMinutes());
+    };
+
+    function enableDatetimePickerClick() {
+      document.querySelectorAll('input[type="datetime-local"]').forEach((input) => {
+        input.addEventListener("click", () => {
+          if (typeof input.showPicker === "function") {
+            input.showPicker();
+          }
+        });
+      });
+    }
+
+    async function loadCurrent() {
+      const response = await fetch("/admin/api-keys");
+      const data = await response.json();
+      const item = (Array.isArray(data.items) ? data.items : []).find((x) => x.id === keyId);
+      if (!item) {
+        msg.textContent = "Key 不存在";
+        return;
+      }
+      totalLimitInput.value = item.totalLimit ?? "";
+      dailyLimitInput.value = item.dailyLimit ?? "";
+      expiresAtInput.value = toDatetimeLocal(item.expiresAt);
+    }
+
+    document.getElementById("save").addEventListener("click", async () => {
+      const payload = {
+        totalLimit: toNullableNumber(totalLimitInput.value),
+        dailyLimit: toNullableNumber(dailyLimitInput.value),
+        expiresAt: expiresAtInput.value ? new Date(expiresAtInput.value).toISOString() : null,
+      };
+
+      const response = await fetch("/admin/api-keys/" + encodeURIComponent(keyId) + "/settings", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json().catch(() => ({ error: "保存失败" }));
+      msg.textContent = response.ok ? "保存成功" : (data.error || "保存失败");
+    });
+
+    document.getElementById("back").addEventListener("click", () => {
+      location.href = "/admin";
+    });
+
+    enableDatetimePickerClick();
+    loadCurrent();
+  </script>
+</body>
+</html>`
+
+// eslint-disable-next-line max-lines-per-function
+const usagePage = (keyId: string): string => `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>API Key 用量</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: #0f172a; color: #e2e8f0; }
+    .container { max-width: 1400px; margin: 20px auto; padding: 0 16px; }
+    .card { background: #111827; border: 1px solid #334155; border-radius: 12px; padding: 16px; margin-top: 16px; }
+    .row { display:flex; gap:10px; flex-wrap: wrap; }
+    input, select { padding: 10px 12px; border-radius: 8px; border: 1px solid #475569; background: #0b1220; color: #e2e8f0; }
+    input[type="datetime-local"] { color-scheme: dark; }
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert(1) brightness(1.4); opacity: 0.9; cursor: pointer; }
+    button { padding: 10px 12px; border: none; border-radius: 8px; background: #2563eb; color: white; font-weight: 600; cursor: pointer; }
+    button.secondary { background: #334155; }
+    button.icon { display: inline-flex; align-items: center; gap: 6px; }
+    .summary { margin-top: 10px; color: #94a3b8; }
+    .chart-wrap { margin-top: 12px; border: 1px solid #334155; border-radius: 8px; padding: 8px; background: #0b1220; }
+    .chart-scroll { width: 100%; overflow-x: auto; overflow-y: hidden; }
+    .chart-title { font-size: 13px; color: #94a3b8; margin: 0 0 8px; }
+    .zoom-info { font-size: 12px; color: #94a3b8; margin: 0 0 8px; }
+    .chart-empty { color: #94a3b8; font-size: 13px; padding: 12px; }
+    .chart-toolbar { display: flex; gap: 8px; margin-bottom: 8px; }
+    #usage-chart { width: 100%; height: 420px; display: block; }
+    .drp-wrap { position: relative; display: inline-block; }
+    .drp-btn { background: #0b1220; border: 1px solid #475569; color: #e2e8f0; border-radius: 8px; padding: 10px 14px; cursor: pointer; font-size: 14px; font-weight: 400; min-width: 228px; text-align: left; white-space: nowrap; }
+    .drp-btn.drp-placeholder { color: #64748b; }
+    .drp-btn.drp-active { border-color: #2563eb; outline: none; }
+    .drp-panel { position: absolute; top: calc(100% + 6px); left: 0; z-index: 1000; background: #111827; border: 1px solid #334155; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 8px 32px rgba(0,0,0,.7); }
+    .drp-shortcuts { display: flex; flex-wrap: wrap; gap: 8px; }
+    .drp-shortcut { background: #0b1220; border: 1px solid #334155; color: #e2e8f0; border-radius: 999px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+    .drp-shortcut:hover { border-color: #2563eb; color: #bfdbfe; }
+    .drp-calendars { display: flex; gap: 20px; }
+    .drp-cal { flex: 0 0 auto; }
+    .drp-cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; min-width: 196px; }
+    .drp-nav-btn { background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 18px; line-height: 1; padding: 2px 7px; border-radius: 4px; }
+    .drp-nav-btn:hover { background: #334155; color: #e2e8f0; }
+    .drp-month-label { font-weight: 600; color: #e2e8f0; font-size: 14px; }
+    .drp-weekdays, .drp-days { display: grid; grid-template-columns: repeat(7, 28px); }
+    .drp-weekdays { text-align: center; font-size: 11px; color: #64748b; margin-bottom: 3px; }
+    .drp-day { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 13px; cursor: pointer; border-radius: 4px; color: #cbd5e1; border: none; background: none; padding: 0; }
+    .drp-day:not(.drp-day-empty):not(.drp-day-other):hover { background: #334155; }
+    .drp-day-start, .drp-day-end { background: #2563eb !important; color: #fff !important; font-weight: 700; border-radius: 4px !important; }
+    .drp-day-in-range { background: rgba(37,99,235,0.18); color: #93c5fd; border-radius: 0; }
+    .drp-day-today:not(.drp-day-start):not(.drp-day-end) { outline: 1px solid #475569; outline-offset: -2px; }
+    .drp-day-empty, .drp-day-other { opacity: 0; pointer-events: none; }
+    .drp-status { font-size: 12px; color: #94a3b8; text-align: center; }
+    .drp-footer { display: flex; justify-content: flex-end; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { text-align: left; border-bottom: 1px solid #334155; padding: 10px 8px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>用量统计：${keyId}</h1>
+    <div class="card">
+      <div class="row">
+        <select id="granularity">
+          <option value="hour">按小时</option>
+          <option value="day" selected>按天</option>
+          <option value="week">按周</option>
+          <option value="month">按月</option>
+        </select>
+        <div id="drp-wrap" class="drp-wrap">
+          <button id="drp-btn" type="button" class="drp-btn drp-placeholder">📅 选择日期范围</button>
+          <div id="drp-panel" class="drp-panel" style="display:none;">
+            <div class="drp-shortcuts">
+              <button type="button" class="drp-shortcut" data-range="last_week">最近一周</button>
+              <button type="button" class="drp-shortcut" data-range="last_month">最近一个月</button>
+              <button type="button" class="drp-shortcut" data-range="last_3_months">最近三个月</button>
+            </div>
+            <div class="drp-calendars">
+              <div id="drp-cal-left" class="drp-cal"></div>
+              <div id="drp-cal-right" class="drp-cal"></div>
+            </div>
+            <div id="drp-status" class="drp-status">点击选择起始日期</div>
+            <div class="drp-footer">
+              <button type="button" id="drp-cancel" class="secondary">取消</button>
+            </div>
+          </div>
+        </div>
+        <button id="back" class="secondary">返回</button>
+      </div>
+      <div id="summary" class="summary"></div>
+      <div class="chart-wrap">
+        <div class="chart-toolbar">
+          <button id="zoom-in" class="secondary">放大</button>
+          <button id="zoom-out" class="secondary">缩小</button>
+          <button id="zoom-reset" class="secondary">重置缩放</button>
+        </div>
+        <p class="chart-title" id="chart-title">区间请求趋势</p>
+        <p class="zoom-info" id="zoom-info">可视区间：-</p>
+        <div id="chart-scroll" class="chart-scroll">
+          <svg id="usage-chart" viewBox="0 0 1400 420" preserveAspectRatio="none"></svg>
+        </div>
+        <div id="chart-empty" class="chart-empty" style="display:none;">当前时间区间无数据</div>
+      </div>
+      <table>
+        <thead><tr><th>时间</th><th>方法</th><th>路径</th><th>状态</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+  <script>
+    const keyId = ${JSON.stringify(keyId)};
+    const rows = document.getElementById("rows");
+    const summary = document.getElementById("summary");
+    const chartTitle = document.getElementById("chart-title");
+    const zoomInfo = document.getElementById("zoom-info");
+    const chartScroll = document.getElementById("chart-scroll");
+    const usageChart = document.getElementById("usage-chart");
+    const chartEmpty = document.getElementById("chart-empty");
+    const drpWrap = document.getElementById("drp-wrap");
+    const drpBtn = document.getElementById("drp-btn");
+    const drpPanel = document.getElementById("drp-panel");
+    const drpStatus = document.getElementById("drp-status");
+    const drpCalLeft = document.getElementById("drp-cal-left");
+    const drpCalRight = document.getElementById("drp-cal-right");
+    const granularityInput = document.getElementById("granularity");
+    const zoomInButton = document.getElementById("zoom-in");
+    const zoomOutButton = document.getElementById("zoom-out");
+    const zoomResetButton = document.getElementById("zoom-reset");
+
+    const chartState = {
+      records: [],
+      fromIso: "",
+      toIso: "",
+      zoomLevel: 1,
+      focusTs: 0,
+      granularity: "day",
+      customFromIso: "",
+      customToIso: "",
+    };
+
+    const drpState = {
+      open: false,
+      viewYear: new Date().getFullYear(),
+      viewMonth: new Date().getMonth() > 0 ? new Date().getMonth() - 1 : 11,
+      startDate: null,
+      endDate: null,
+      hoverDate: null,
+      picking: "start",
+    };
+    if (new Date().getMonth() === 0) drpState.viewYear -= 1;
+
+    const DRP_WEEKDAYS = ["一","二","三","四","五","六","日"];
+    const DRP_MONTHS = ["一月","二月","三月","四月","五月","六月","七月","八月","九月","十月","十一月","十二月"];
+
+    function drpFormatDate(d) {
+      return d ? d.getFullYear() + "/" + pad(d.getMonth() + 1) + "/" + pad(d.getDate()) : "";
+    }
+
+    function drpSameDay(a, b) {
+      return !!a && !!b &&
+        a.getFullYear() === b.getFullYear() &&
+        a.getMonth() === b.getMonth() &&
+        a.getDate() === b.getDate();
+    }
+
+    function drpDateOnly(d) {
+      const r = new Date(d); r.setHours(0, 0, 0, 0); return r;
+    }
+
+    function drpIsBetween(d, a, b) {
+      if (!a || !b) return false;
+      const dt = drpDateOnly(d).getTime();
+      const lo = Math.min(drpDateOnly(a).getTime(), drpDateOnly(b).getTime());
+      const hi = Math.max(drpDateOnly(a).getTime(), drpDateOnly(b).getTime());
+      return dt > lo && dt < hi;
+    }
+
+    function drpEffectiveEnd() {
+      return drpState.picking === "end" && drpState.hoverDate && drpState.startDate
+        ? drpState.hoverDate
+        : drpState.endDate;
+    }
+
+    function drpBuildMonth(year, month, side) {
+      const today = new Date();
+      const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7;
+      const lastDay = new Date(year, month + 1, 0).getDate();
+      const effEnd = drpEffectiveEnd();
+
+      const header = '<div class="drp-cal-header">' +
+        (side === "left"
+          ? '<button type="button" class="drp-nav-btn" id="drp-prev">‹</button>'
+          : '<span style="width:30px"></span>') +
+        '<span class="drp-month-label">' + year + '年 ' + DRP_MONTHS[month] + '</span>' +
+        (side === "right"
+          ? '<button type="button" class="drp-nav-btn" id="drp-next">›</button>'
+          : '<span style="width:30px"></span>') +
+        '</div>';
+
+      const weekRow = '<div class="drp-weekdays">' +
+        DRP_WEEKDAYS.map((l) => '<span>' + l + '</span>').join("") + '</div>';
+
+      let days = '<div class="drp-days">';
+      for (let i = 0; i < firstWeekday; i++) {
+        days += '<button type="button" class="drp-day drp-day-empty" tabindex="-1"></button>';
+      }
+      for (let d = 1; d <= lastDay; d++) {
+        const date = new Date(year, month, d);
+        let cls = "drp-day";
+        const isStart = drpSameDay(date, drpState.startDate);
+        const isEnd = drpSameDay(date, effEnd) && !!drpState.startDate;
+        const inRange = drpIsBetween(date, drpState.startDate, effEnd);
+        if (isStart) cls += " drp-day-start";
+        if (isEnd) cls += " drp-day-end";
+        if (inRange) cls += " drp-day-in-range";
+        if (drpSameDay(date, today)) cls += " drp-day-today";
+        days += '<button type="button" class="' + cls + '" data-y="' + year + '" data-m="' + month + '" data-d="' + d + '">' + d + '</button>';
+      }
+      days += '</div>';
+      return header + weekRow + days;
+    }
+
+    function drpRender() {
+      let ry = drpState.viewYear, rm = drpState.viewMonth + 1;
+      if (rm > 11) { rm = 0; ry++; }
+      drpCalLeft.innerHTML = drpBuildMonth(drpState.viewYear, drpState.viewMonth, "left");
+      drpCalRight.innerHTML = drpBuildMonth(ry, rm, "right");
+
+      drpStatus.textContent = drpState.startDate && drpState.picking === "end"
+        ? "起始：" + drpFormatDate(drpState.startDate) + "，请点击结束日期"
+        : drpState.startDate && drpState.endDate
+          ? drpFormatDate(drpState.startDate) + " ~ " + drpFormatDate(drpState.endDate)
+          : "点击选择起始日期";
+
+      const prevBtn = document.getElementById("drp-prev");
+      const nextBtn = document.getElementById("drp-next");
+      if (prevBtn) {
+        prevBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          drpState.viewMonth--;
+          if (drpState.viewMonth < 0) { drpState.viewMonth = 11; drpState.viewYear--; }
+          drpRender();
+        });
+      }
+      if (nextBtn) {
+        nextBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          drpState.viewMonth++;
+          if (drpState.viewMonth > 11) { drpState.viewMonth = 0; drpState.viewYear++; }
+          drpRender();
+        });
+      }
+
+      drpPanel.querySelectorAll(".drp-day[data-d]").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const date = new Date(+btn.dataset.y, +btn.dataset.m, +btn.dataset.d);
+          if (drpState.picking === "start") {
+            drpState.startDate = date;
+            drpState.endDate = null;
+            drpState.picking = "end";
+            drpRender();
+          } else {
+            let s = drpState.startDate, en = date;
+            if (en < s) { const t = s; s = en; en = t; }
+            drpState.startDate = s;
+            drpState.endDate = en;
+            drpState.picking = "start";
+            drpRender();
+            drpApplyAndClose();
+          }
+        });
+        btn.addEventListener("mouseenter", () => {
+          drpState.hoverDate = new Date(+btn.dataset.y, +btn.dataset.m, +btn.dataset.d);
+          drpRender();
+        });
+      });
+
+      drpPanel.addEventListener("mouseleave", () => {
+        drpState.hoverDate = null;
+        drpRender();
+      }, { once: true });
+    }
+
+    function drpOpenPanel() {
+      drpState.open = true;
+      drpState.picking = "start";
+      drpState.hoverDate = null;
+      if (chartState.customFromIso) {
+        const f = new Date(chartState.customFromIso);
+        drpState.startDate = f;
+        drpState.viewYear = f.getMonth() > 0 ? f.getFullYear() : f.getFullYear() - 1;
+        drpState.viewMonth = f.getMonth() > 0 ? f.getMonth() - 1 : 11;
+      } else {
+        drpState.startDate = null;
+        drpState.endDate = null;
+        const now = new Date();
+        drpState.viewYear = now.getMonth() > 0 ? now.getFullYear() : now.getFullYear() - 1;
+        drpState.viewMonth = now.getMonth() > 0 ? now.getMonth() - 1 : 11;
+      }
+      drpState.endDate = chartState.customToIso ? new Date(chartState.customToIso) : null;
+      drpPanel.style.display = "";
+      drpBtn.classList.add("drp-active");
+      drpRender();
+    }
+
+    function drpClosePanel() {
+      drpState.open = false;
+      drpPanel.style.display = "none";
+      drpBtn.classList.remove("drp-active");
+    }
+
+    async function drpApplyAndClose() {
+      if (!drpState.startDate || !drpState.endDate) return;
+      const from = new Date(drpState.startDate); from.setHours(0, 0, 0, 0);
+      const to = new Date(drpState.endDate); to.setHours(23, 59, 59, 999);
+      setCustomRange(from, to);
+      drpUpdateLabel();
+      drpClosePanel();
+      await queryUsage();
+    }
+
+    function drpUpdateLabel() {
+      if (!chartState.customFromIso || !chartState.customToIso) {
+        drpBtn.textContent = "📅 选择日期范围";
+        drpBtn.classList.add("drp-placeholder");
+        return;
+      }
+      drpBtn.textContent = "📅 " + drpFormatDate(new Date(chartState.customFromIso)) +
+        " ~ " + drpFormatDate(new Date(chartState.customToIso));
+      drpBtn.classList.remove("drp-placeholder");
+    }
+
+    const pad = (n) => String(n).padStart(2, "0");
+    const toDayKey = (date) =>
+      date.getFullYear() + "-" + pad(date.getMonth() + 1) + "-" + pad(date.getDate());
+
+    const toHourKey = (date) => toDayKey(date) + " " + pad(date.getHours()) + ":00";
+    const toMonthKey = (date) => date.getFullYear() + "-" + pad(date.getMonth() + 1);
+
+    const getWeekStart = (date) => {
+      const d = new Date(date);
+      const day = (d.getDay() + 6) % 7;
+      d.setDate(d.getDate() - day);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    };
+
+    const toWeekKey = (date) => toDayKey(getWeekStart(date));
+
+    const granularityLabel = {
+      hour: "按小时",
+      day: "按天",
+      week: "按周",
+      month: "按月",
+    };
+
+    const diffHours = (from, to) => Math.max(1, Math.ceil((to - from) / (1000 * 60 * 60)));
+    const diffDays = (from, to) => Math.max(1, Math.ceil((to - from) / (1000 * 60 * 60 * 24)));
+    const diffWeeks = (from, to) => Math.max(1, Math.ceil(diffDays(from, to) / 7));
+    const diffMonths = (from, to) => Math.max(1, (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth()) + 1);
+
+    function chooseGranularity(fromIso, toIso, maxPoints) {
+      const from = new Date(fromIso);
+      const to = new Date(toIso);
+
+      if (diffHours(from, to) <= maxPoints) return "hour";
+      if (diffDays(from, to) <= maxPoints) return "day";
+      if (diffWeeks(from, to) <= maxPoints) return "week";
+      return "month";
+    }
+
+    function bucketKeyByGranularity(date, granularity) {
+      if (granularity === "hour") return toHourKey(date);
+      if (granularity === "day") return toDayKey(date);
+      if (granularity === "week") return toWeekKey(date);
+      return toMonthKey(date);
+    }
+
+    function buildBuckets(fromIso, toIso, granularity) {
+      const from = new Date(fromIso);
+      const to = new Date(toIso);
+      const buckets = [];
+
+      if (granularity === "hour") {
+        const cursor = new Date(from);
+        cursor.setMinutes(0, 0, 0);
+        while (cursor <= to) {
+          buckets.push(toHourKey(cursor));
+          cursor.setHours(cursor.getHours() + 1);
+        }
+        return buckets;
+      }
+
+      if (granularity === "day") {
+        const cursor = new Date(from);
+        cursor.setHours(0, 0, 0, 0);
+        while (cursor <= to) {
+          buckets.push(toDayKey(cursor));
+          cursor.setDate(cursor.getDate() + 1);
+        }
+        return buckets;
+      }
+
+      if (granularity === "week") {
+        const cursor = getWeekStart(from);
+        while (cursor <= to) {
+          buckets.push(toWeekKey(cursor));
+          cursor.setDate(cursor.getDate() + 7);
+        }
+        return buckets;
+      }
+
+      const cursor = new Date(from.getFullYear(), from.getMonth(), 1);
+      const end = new Date(to.getFullYear(), to.getMonth(), 1);
+      while (cursor <= end) {
+        buckets.push(toMonthKey(cursor));
+        cursor.setMonth(cursor.getMonth() + 1);
+      }
+      return buckets;
+    }
+
+    function getZoomedRange(fromIso, toIso, zoomLevel) {
+      const from = new Date(fromIso);
+      const to = new Date(toIso);
+      const total = to.getTime() - from.getTime();
+      if (total <= 0) {
+        return { fromIso, toIso };
+      }
+
+      if (zoomLevel <= 1) {
+        return { fromIso, toIso };
+      }
+
+      const visible = total / zoomLevel;
+      const defaultCenter = from.getTime() + total / 2;
+      const center = chartState.focusTs > 0
+        ? Math.min(to.getTime(), Math.max(from.getTime(), chartState.focusTs))
+        : defaultCenter;
+      let viewFrom = center - visible / 2;
+      let viewTo = center + visible / 2;
+
+      if (viewFrom < from.getTime()) {
+        viewTo += from.getTime() - viewFrom;
+        viewFrom = from.getTime();
+      }
+
+      if (viewTo > to.getTime()) {
+        viewFrom -= viewTo - to.getTime();
+        viewTo = to.getTime();
+      }
+
+      return {
+        fromIso: new Date(Math.max(from.getTime(), viewFrom)).toISOString(),
+        toIso: new Date(Math.min(to.getTime(), viewTo)).toISOString(),
+      };
+    }
+
+    function maxDisplayPoints() {
+      const width = chartScroll.clientWidth || usageChart.clientWidth || 1200;
+      return Math.max(24, Math.floor(width / 16));
+    }
+
+    function resolveGranularityByZoom(fromIso, toIso, zoomLevel) {
+      const zoomed = getZoomedRange(fromIso, toIso, zoomLevel);
+      const pointsBudget = Math.max(
+        1,
+        Math.floor(maxDisplayPoints() * Math.max(zoomLevel, 1 / 64) * Math.max(zoomLevel, 1 / 64)),
+      );
+
+      return chooseGranularity(zoomed.fromIso, zoomed.toIso, pointsBudget);
+    }
+
+    function syncGranularityToZoom() {
+      if (!chartState.fromIso || !chartState.toIso) {
+        return;
+      }
+
+      chartState.granularity = resolveGranularityByZoom(
+        chartState.fromIso,
+        chartState.toIso,
+        chartState.zoomLevel,
+      );
+      granularityInput.value = chartState.granularity;
+    }
+
+    function findZoomLevelForGranularity(targetGranularity) {
+      if (!chartState.fromIso || !chartState.toIso) {
+        return 1;
+      }
+
+      const minZoom = 1 / 64;
+      const maxZoom = 64;
+      const candidates = [];
+      let zoom = minZoom;
+      while (zoom <= maxZoom) {
+        candidates.push(zoom);
+        zoom *= 2;
+      }
+
+      let matched = candidates.filter(
+        (candidate) =>
+          resolveGranularityByZoom(
+            chartState.fromIso,
+            chartState.toIso,
+            candidate,
+          ) === targetGranularity,
+      );
+
+      if (matched.length === 0) {
+        matched = candidates;
+      }
+
+      return matched.reduce((best, current) => {
+        const bestDistance = Math.abs(Math.log2(best));
+        const currentDistance = Math.abs(Math.log2(current));
+        return currentDistance < bestDistance ? current : best;
+      }, matched[0]);
+    }
+
+    function refreshChartFromState() {
+      if (!chartState.fromIso || !chartState.toIso) {
+        return;
+      }
+
+      renderLineChart(chartState.records, chartState.fromIso, chartState.toIso, chartState.zoomLevel);
+    }
+
+    function renderLineChart(records, fromIso, toIso, zoomLevel) {
+      const zoomed = getZoomedRange(fromIso, toIso, zoomLevel);
+      const granularity = chartState.granularity;
+      chartTitle.textContent =
+        "区间请求趋势（" + granularityLabel[granularity] + "，缩放 x" +
+        zoomLevel.toFixed(2) + "）";
+      zoomInfo.textContent = "可视区间：" + zoomed.fromIso + " ~ " + zoomed.toIso;
+
+      const buckets = buildBuckets(zoomed.fromIso, zoomed.toIso, granularity);
+      const counter = new Map();
+      for (const key of buckets) counter.set(key, 0);
+
+      for (const item of records || []) {
+        const ts = new Date(item.timestamp).toISOString();
+        if (ts < zoomed.fromIso || ts > zoomed.toIso) {
+          continue;
+        }
+        const key = bucketKeyByGranularity(new Date(item.timestamp), granularity);
+        if (counter.has(key)) {
+          counter.set(key, (counter.get(key) || 0) + 1);
+        }
+      }
+
+      const values = buckets.map((key) => counter.get(key) || 0);
+      const max = Math.max(1, ...values);
+
+      if (values.every((v) => v === 0)) {
+        usageChart.innerHTML = "";
+        chartEmpty.style.display = "block";
+        return;
+      }
+
+      chartEmpty.style.display = "none";
+
+      const containerWidth = chartScroll.clientWidth || usageChart.clientWidth || 1200;
+      const unitWidthByGranularity = {
+        hour: 56,
+        day: 28,
+        week: 24,
+        month: 72,
+      };
+      const unitWidth = unitWidthByGranularity[granularity] || 28;
+      const width = Math.max(containerWidth, buckets.length * unitWidth);
+      const height = 420;
+      const left = 44;
+      const right = 16;
+      const top = 14;
+      const bottom = 34;
+      const plotW = width - left - right;
+      const plotH = height - top - bottom;
+
+      usageChart.setAttribute("viewBox", "0 0 " + width + " " + height);
+      usageChart.style.width = width + "px";
+
+      const x = (i) => left + (buckets.length <= 1 ? 0 : (i * plotW) / (buckets.length - 1));
+      const y = (v) => top + plotH - (v / max) * plotH;
+
+      let polyline = "";
+      for (let i = 0; i < values.length; i++) {
+        polyline += (i === 0 ? "" : " ") + x(i) + "," + y(values[i]);
+      }
+
+      const yTicks = [0, Math.ceil(max / 2), max];
+      const tickLines = yTicks.map((v) => {
+        const yy = y(v);
+        return '<line x1="' + left + '" y1="' + yy + '" x2="' + (width - right) + '" y2="' + yy + '" stroke="#334155" stroke-width="1" />' +
+          '<text x="' + (left - 8) + '" y="' + (yy + 4) + '" text-anchor="end" fill="#94a3b8" font-size="11">' + v + '</text>';
+      }).join("");
+
+      const labelStep = Math.max(1, Math.ceil(buckets.length / 6));
+      const xLabels = buckets.map((key, i) => {
+        if (i % labelStep !== 0 && i !== buckets.length - 1) return "";
+        let label = key;
+        if (granularity === "day") label = key.slice(5);
+        if (granularity === "hour") label = key.slice(5, 13);
+        if (granularity === "week") label = "W@" + key.slice(5);
+        if (granularity === "month") label = key;
+        return '<text x="' + x(i) + '" y="' + (height - 10) + '" text-anchor="middle" fill="#94a3b8" font-size="11">' + label + '</text>';
+      }).join("");
+
+      const points = values.map((v, i) =>
+        '<circle cx="' + x(i) + '" cy="' + y(v) + '" r="2.5" fill="#22d3ee" />'
+      ).join("");
+
+      usageChart.innerHTML =
+        '<rect x="0" y="0" width="' + width + '" height="' + height + '" fill="#0b1220" />' +
+        tickLines +
+        '<polyline points="' + polyline + '" fill="none" stroke="#22d3ee" stroke-width="2" />' +
+        points +
+        xLabels;
+    }
+
+    function computeQuickRange(kind) {
+      const now = new Date();
+      const from = new Date(now);
+      const to = new Date(now);
+      if (kind === "last_week") {
+        from.setDate(now.getDate() - 7);
+      } else if (kind === "last_3_months") {
+        from.setMonth(now.getMonth() - 3);
+      } else {
+        from.setMonth(now.getMonth() - 1);
+      }
+      from.setHours(0, 0, 0, 0);
+      to.setHours(23, 59, 59, 999);
+      return { from, to };
+    }
+
+    function setCustomRange(from, to) {
+      chartState.customFromIso = from.toISOString();
+      chartState.customToIso = to.toISOString();
+      drpState.startDate = new Date(from);
+      drpState.endDate = new Date(to);
+      drpState.picking = "start";
+    }
+
+    function applyQuickRange(kind, options = {}) {
+      const { closePanel = true, skipQuery = false } = options;
+      const range = computeQuickRange(kind);
+      setCustomRange(range.from, range.to);
+      drpUpdateLabel();
+      if (drpState.open) drpRender();
+      if (closePanel) drpClosePanel();
+      if (!skipQuery) queryUsage();
+    }
+
+    function getSelectedRange() {
+      if (!chartState.customFromIso || !chartState.customToIso) {
+        const range = computeQuickRange("last_month");
+        setCustomRange(range.from, range.to);
+        drpUpdateLabel();
+      }
+
+      return {
+        fromIso: chartState.customFromIso,
+        toIso: chartState.customToIso,
+      };
+    }
+
+    async function queryUsage() {
+      const range = getSelectedRange();
+      const fromIso = range.fromIso;
+      const toIso = range.toIso;
+
+      const response = await fetch(
+        "/admin/api-keys/" + encodeURIComponent(keyId) + "/usage?from=" +
+        encodeURIComponent(fromIso) + "&to=" +
+        encodeURIComponent(toIso)
+      );
+
+      const data = await response.json().catch(() => ({ error: "查询失败" }));
+      if (!response.ok) {
+        summary.textContent = data.error || "查询失败";
+        return;
+      }
+
+      summary.textContent = "区间请求数：" + data.count + "，累计：" + data.totalUsage + "，今日：" + data.dailyUsage;
+      rows.innerHTML = "";
+      for (const item of data.records || []) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = "<td>" + item.timestamp + "</td><td>" + item.method + "</td><td>" + item.path + "</td><td>" + item.status + "</td>";
+        rows.appendChild(tr);
+      }
+
+      chartState.records = data.records || [];
+      chartState.fromIso = data.from;
+      chartState.toIso = data.to;
+      chartState.zoomLevel = 1;
+      const times = chartState.records
+        .map((item) => new Date(item.timestamp).getTime())
+        .filter((ts) => Number.isFinite(ts));
+      chartState.focusTs = times.length > 0
+        ? Math.max(...times)
+        : (new Date(data.from).getTime() + new Date(data.to).getTime()) / 2;
+      syncGranularityToZoom();
+      refreshChartFromState();
+    }
+
+    drpBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      drpState.open ? drpClosePanel() : drpOpenPanel();
+    });
+    document.getElementById("drp-cancel").addEventListener("click", () => drpClosePanel());
+    drpPanel.querySelectorAll(".drp-shortcut").forEach((btn) => {
+      btn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        const range = btn.dataset.range || "last_month";
+        applyQuickRange(range);
+      });
+    });
+    document.addEventListener("click", (e) => {
+      if (drpState.open && !drpWrap.contains(e.target)) drpClosePanel();
+    });
+
+    granularityInput.addEventListener("change", () => {
+      chartState.granularity = granularityInput.value;
+      chartState.zoomLevel = findZoomLevelForGranularity(chartState.granularity);
+      syncGranularityToZoom();
+      refreshChartFromState();
+    });
+    zoomInButton.addEventListener("click", () => {
+      chartState.zoomLevel = Math.min(64, chartState.zoomLevel * 2);
+      syncGranularityToZoom();
+      refreshChartFromState();
+    });
+    zoomOutButton.addEventListener("click", () => {
+      chartState.zoomLevel = Math.max(1 / 64, chartState.zoomLevel / 2);
+      syncGranularityToZoom();
+      refreshChartFromState();
+    });
+    zoomResetButton.addEventListener("click", () => {
+      chartState.zoomLevel = 1;
+      syncGranularityToZoom();
+      refreshChartFromState();
+    });
+    window.addEventListener("resize", () => {
+      syncGranularityToZoom();
+      refreshChartFromState();
+    });
+
+    document.getElementById("back").addEventListener("click", () => {
+      location.href = "/admin";
+    });
+
+    drpUpdateLabel();
+    applyQuickRange("last_month", { skipQuery: true, closePanel: true });
+    queryUsage();
   </script>
 </body>
 </html>`
@@ -292,6 +1321,26 @@ adminRoutes.get("/", (c) => {
   return c.html(adminPage)
 })
 
+adminRoutes.get("/api-keys/:id/settings", async (c) => {
+  const id = c.req.param("id")
+  const item = await getManagedApiKeyById(id)
+  if (!item) {
+    return c.text("API key not found", 404)
+  }
+
+  return c.html(settingsPage(item.id))
+})
+
+adminRoutes.get("/api-keys/:id/usage-view", async (c) => {
+  const id = c.req.param("id")
+  const item = await getManagedApiKeyById(id)
+  if (!item) {
+    return c.text("API key not found", 404)
+  }
+
+  return c.html(usagePage(item.id))
+})
+
 adminRoutes.use("/api-keys/*", requireAdminAuth())
 adminRoutes.use("/api-keys", requireAdminAuth())
 
@@ -312,11 +1361,20 @@ adminRoutes.get("/api-keys/:id", async (c) => {
 })
 
 adminRoutes.post("/api-keys", async (c) => {
-  const payload = await c.req.json<{ id?: string }>()
+  const payload = await c.req.json<{
+    id?: string
+    totalLimit?: number | null
+    dailyLimit?: number | null
+    expiresAt?: string | null
+  }>()
   const id = payload.id?.trim() ?? ""
 
   try {
-    const item = await createManagedApiKey(id)
+    const item = await createManagedApiKey(id, {
+      totalLimit: payload.totalLimit,
+      dailyLimit: payload.dailyLimit,
+      expiresAt: payload.expiresAt,
+    })
     return c.json(item)
   } catch (error) {
     if (error instanceof ManagedApiKeyError) {
@@ -328,6 +1386,73 @@ adminRoutes.post("/api-keys", async (c) => {
     }
 
     return c.json({ error: "Failed to create API key" }, 500)
+  }
+})
+
+adminRoutes.get("/api-keys/:id/usage", async (c) => {
+  const id = c.req.param("id")
+  const item = await getManagedApiKeyById(id)
+  if (!item) {
+    return c.json({ error: "API key not found" }, 404)
+  }
+
+  const fromRaw = c.req.query("from")
+  const toRaw = c.req.query("to")
+  if (!fromRaw || !toRaw) {
+    return c.json({ error: "from and to are required" }, 400)
+  }
+
+  const from = new Date(fromRaw)
+  const to = new Date(toRaw)
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from > to) {
+    return c.json({ error: "invalid time range" }, 400)
+  }
+
+  const records = await getManagedApiKeyUsageByRange(item.id, from, to)
+  const summary = await getManagedApiKeyUsageSummary(item.id)
+
+  return c.json({
+    keyId: item.id,
+    from: from.toISOString(),
+    to: to.toISOString(),
+    count: records.length,
+    totalUsage: summary.total,
+    dailyUsage: summary.daily,
+    records,
+  })
+})
+
+adminRoutes.patch("/api-keys/:id/settings", async (c) => {
+  const id = c.req.param("id")
+  const payload = await c.req.json<{
+    totalLimit?: number | null
+    dailyLimit?: number | null
+    expiresAt?: string | null
+  }>()
+
+  try {
+    const updated = await updateManagedApiKeySettings(id, {
+      totalLimit: payload.totalLimit,
+      dailyLimit: payload.dailyLimit,
+      expiresAt: payload.expiresAt,
+    })
+
+    if (!updated) {
+      return c.json({ error: "API key not found" }, 404)
+    }
+
+    return c.json({
+      id: updated.id,
+      totalLimit: updated.totalLimit,
+      dailyLimit: updated.dailyLimit,
+      expiresAt: updated.expiresAt,
+    })
+  } catch (error) {
+    if (error instanceof ManagedApiKeyError) {
+      return c.json({ error: error.message }, 400)
+    }
+
+    return c.json({ error: "Failed to update settings" }, 500)
   }
 })
 

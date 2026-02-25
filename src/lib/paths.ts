@@ -9,17 +9,22 @@ const APP_DIR =
 const GITHUB_TOKEN_PATH = path.join(APP_DIR, "github_token")
 const API_KEYS_PATH =
   process.env.COPILOT_API_KEYS_PATH ?? path.join(APP_DIR, "api_keys.json")
+const API_KEY_USAGE_PATH =
+  process.env.COPILOT_API_KEY_USAGE_PATH
+  ?? path.join(APP_DIR, "api_key_usage.json")
 
 export const PATHS = {
   APP_DIR,
   GITHUB_TOKEN_PATH,
   API_KEYS_PATH,
+  API_KEY_USAGE_PATH,
 }
 
 export async function ensurePaths(): Promise<void> {
   await fs.mkdir(PATHS.APP_DIR, { recursive: true })
   await ensureFile(PATHS.GITHUB_TOKEN_PATH)
   await ensureJsonFile(PATHS.API_KEYS_PATH, "[]")
+  await ensureJsonFile(PATHS.API_KEY_USAGE_PATH, "[]")
 }
 
 async function ensureFile(filePath: string): Promise<void> {

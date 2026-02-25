@@ -8,9 +8,16 @@ const API_TOKEN_ENV = "COPILOT_API_TOKEN"
 const KEY_ID_PATTERN = /^[\w.-]+$/
 
 export class ManagedApiKeyError extends Error {
-  code: "duplicate-id" | "invalid-id"
+  code: "duplicate-id" | "invalid-id" | "invalid-limit" | "invalid-expiration"
 
-  constructor(code: "duplicate-id" | "invalid-id", message: string) {
+  constructor(
+    code:
+      | "duplicate-id"
+      | "invalid-id"
+      | "invalid-limit"
+      | "invalid-expiration",
+    message: string,
+  ) {
     super(message)
     this.code = code
   }
@@ -20,15 +27,82 @@ export interface ManagedApiKey {
   id: string
   key: string
   createdAt: string
+  totalLimit: number | null
+  dailyLimit: number | null
+  expiresAt: string | null
 }
 
 export interface ManagedApiKeyListItem {
   id: string
   prefix: string
   createdAt: string
+  totalLimit: number | null
+  dailyLimit: number | null
+  expiresAt: string | null
+}
+
+export interface ManagedApiKeyUsageRecord {
+  keyId: string
+  timestamp: string
+  path: string
+  method: string
+  status: number
+}
+
+export interface ManagedApiKeyUsageSummary {
+  total: number
+  daily: number
+}
+
+interface CreateManagedApiKeyOptions {
+  totalLimit?: number | null
+  dailyLimit?: number | null
+  expiresAt?: string | null
+}
+
+export interface UpdateManagedApiKeySettingsOptions {
+  totalLimit?: number | null
+  dailyLimit?: number | null
+  expiresAt?: string | null
 }
 
 const normalizeKeyId = (id: string): string => id.trim()
+
+const normalizeLimit = (
+  value: number | null | undefined,
+  fieldName: "totalLimit" | "dailyLimit",
+): number | null => {
+  if (value === undefined || value === null) {
+    return null
+  }
+
+  if (!Number.isInteger(value) || value < 0) {
+    throw new ManagedApiKeyError(
+      "invalid-limit",
+      `${fieldName} must be a non-negative integer`,
+    )
+  }
+
+  return value
+}
+
+const normalizeExpiresAt = (
+  value: string | null | undefined,
+): string | null => {
+  if (value === undefined || value === null || value.trim() === "") {
+    return null
+  }
+
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) {
+    throw new ManagedApiKeyError(
+      "invalid-expiration",
+      "expiresAt must be a valid datetime",
+    )
+  }
+
+  return parsed.toISOString()
+}
 
 const parseEnvTokens = (raw: string | undefined): Array<string> =>
   raw
@@ -46,6 +120,30 @@ const isManagedApiKey = (value: unknown): value is ManagedApiKey => {
     typeof candidate.id === "string"
     && typeof candidate.key === "string"
     && typeof candidate.createdAt === "string"
+    && (candidate.totalLimit === undefined
+      || candidate.totalLimit === null
+      || Number.isInteger(candidate.totalLimit))
+    && (candidate.dailyLimit === undefined
+      || candidate.dailyLimit === null
+      || Number.isInteger(candidate.dailyLimit))
+    && (candidate.expiresAt === undefined
+      || candidate.expiresAt === null
+      || typeof candidate.expiresAt === "string")
+  )
+}
+
+const isUsageRecord = (value: unknown): value is ManagedApiKeyUsageRecord => {
+  if (!value || typeof value !== "object") {
+    return false
+  }
+
+  const candidate = value as Partial<ManagedApiKeyUsageRecord>
+  return (
+    typeof candidate.keyId === "string"
+    && typeof candidate.timestamp === "string"
+    && typeof candidate.path === "string"
+    && typeof candidate.method === "string"
+    && Number.isInteger(candidate.status)
   )
 }
 
@@ -57,7 +155,28 @@ const readManagedApiKeys = async (): Promise<Array<ManagedApiKey>> => {
       return []
     }
 
-    return parsed.filter((item) => isManagedApiKey(item))
+    return parsed
+      .filter((item) => isManagedApiKey(item))
+      .map((item) => ({
+        ...item,
+        totalLimit: item.totalLimit ?? null,
+        dailyLimit: item.dailyLimit ?? null,
+        expiresAt: item.expiresAt ?? null,
+      }))
+  } catch {
+    return []
+  }
+}
+
+const readUsageRecords = async (): Promise<Array<ManagedApiKeyUsageRecord>> => {
+  try {
+    const raw = await fs.readFile(PATHS.API_KEY_USAGE_PATH)
+    const parsed: unknown = JSON.parse(raw.toString("utf8"))
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+
+    return parsed.filter((item) => isUsageRecord(item))
   } catch {
     return []
   }
@@ -71,6 +190,16 @@ const writeManagedApiKeys = async (
   await fs.writeFile(tempPath, JSON.stringify(keys, null, 2))
   await fs.rename(tempPath, PATHS.API_KEYS_PATH)
   await fs.chmod(PATHS.API_KEYS_PATH, 0o600)
+}
+
+const writeUsageRecords = async (
+  records: Array<ManagedApiKeyUsageRecord>,
+): Promise<void> => {
+  const tempPath = `${PATHS.API_KEY_USAGE_PATH}.${randomUUID()}.tmp`
+  await fs.mkdir(path.dirname(PATHS.API_KEY_USAGE_PATH), { recursive: true })
+  await fs.writeFile(tempPath, JSON.stringify(records, null, 2))
+  await fs.rename(tempPath, PATHS.API_KEY_USAGE_PATH)
+  await fs.chmod(PATHS.API_KEY_USAGE_PATH, 0o600)
 }
 
 const formatPrefix = (token: string): string => {
@@ -89,6 +218,9 @@ export const listManagedApiKeys = async (): Promise<
     id: item.id,
     createdAt: item.createdAt,
     prefix: formatPrefix(item.key),
+    totalLimit: item.totalLimit,
+    dailyLimit: item.dailyLimit,
+    expiresAt: item.expiresAt,
   }))
 }
 
@@ -102,6 +234,7 @@ export const getManagedApiKeyById = async (
 
 export const createManagedApiKey = async (
   id: string,
+  options?: CreateManagedApiKeyOptions,
 ): Promise<ManagedApiKey> => {
   const normalizedId = normalizeKeyId(id)
   if (!normalizedId || !KEY_ID_PATTERN.test(normalizedId)) {
@@ -118,10 +251,17 @@ export const createManagedApiKey = async (
     throw new ManagedApiKeyError("duplicate-id", "Key name already exists")
   }
 
+  const totalLimit = normalizeLimit(options?.totalLimit, "totalLimit")
+  const dailyLimit = normalizeLimit(options?.dailyLimit, "dailyLimit")
+  const expiresAt = normalizeExpiresAt(options?.expiresAt)
+
   const item: ManagedApiKey = {
     id: normalizedId,
     key,
     createdAt: new Date().toISOString(),
+    totalLimit,
+    dailyLimit,
+    expiresAt,
   }
 
   await writeManagedApiKeys([...current, item])
@@ -140,11 +280,98 @@ export const deleteManagedApiKey = async (id: string): Promise<boolean> => {
   return true
 }
 
+export const updateManagedApiKeySettings = async (
+  id: string,
+  options: UpdateManagedApiKeySettingsOptions,
+): Promise<ManagedApiKey | undefined> => {
+  const normalizedId = normalizeKeyId(id)
+  const current = await readManagedApiKeys()
+  const index = current.findIndex((item) => item.id === normalizedId)
+  if (index === -1) {
+    return undefined
+  }
+
+  const updated: ManagedApiKey = {
+    ...current[index],
+    totalLimit: normalizeLimit(options.totalLimit, "totalLimit"),
+    dailyLimit: normalizeLimit(options.dailyLimit, "dailyLimit"),
+    expiresAt: normalizeExpiresAt(options.expiresAt),
+  }
+
+  current[index] = updated
+  await writeManagedApiKeys(current)
+  return updated
+}
+
 export const getApiTokens = async (): Promise<Array<string>> => {
   const envTokens = parseEnvTokens(process.env[API_TOKEN_ENV])
   const managedKeys = await readManagedApiKeys()
 
   return [...new Set([...envTokens, ...managedKeys.map((item) => item.key)])]
+}
+
+export const getManagedApiKeyByToken = async (
+  token: string,
+): Promise<ManagedApiKey | undefined> => {
+  const managedKeys = await readManagedApiKeys()
+  return managedKeys.find((item) => item.key === token)
+}
+
+const isWithinRange = (timestamp: string, from: Date, to: Date): boolean => {
+  const current = new Date(timestamp).getTime()
+  return current >= from.getTime() && current <= to.getTime()
+}
+
+const startOfLocalDay = (reference: Date): Date => {
+  const day = new Date(reference)
+  day.setHours(0, 0, 0, 0)
+  return day
+}
+
+export const getManagedApiKeyUsageByRange = async (
+  keyId: string,
+  from: Date,
+  to: Date,
+): Promise<Array<ManagedApiKeyUsageRecord>> => {
+  const records = await readUsageRecords()
+  return records.filter(
+    (item) => item.keyId === keyId && isWithinRange(item.timestamp, from, to),
+  )
+}
+
+export const getManagedApiKeyUsageSummary = async (
+  keyId: string,
+  referenceDate = new Date(),
+): Promise<ManagedApiKeyUsageSummary> => {
+  const records = await readUsageRecords()
+  const ownRecords = records.filter((item) => item.keyId === keyId)
+  const dayStart = startOfLocalDay(referenceDate)
+
+  return {
+    total: ownRecords.length,
+    daily: ownRecords.filter((item) => new Date(item.timestamp) >= dayStart)
+      .length,
+  }
+}
+
+export const recordManagedApiKeyUsage = async (
+  keyId: string,
+  context: {
+    path: string
+    method: string
+    status: number
+  },
+): Promise<void> => {
+  const records = await readUsageRecords()
+  records.push({
+    keyId,
+    timestamp: new Date().toISOString(),
+    path: context.path,
+    method: context.method,
+    status: context.status,
+  })
+
+  await writeUsageRecords(records)
 }
 
 export const getPrimaryApiToken = async (): Promise<string | undefined> => {
