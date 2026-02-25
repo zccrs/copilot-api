@@ -33,7 +33,7 @@ const loginPage = `<!doctype html>
   <title>Copilot API Admin Login</title>
   <script>
     (function () {
-      const stored = localStorage.getItem("copilot-admin-theme") ?? "light";
+      const stored = localStorage.getItem("copilot-admin-theme") || "light";
       document.documentElement.setAttribute(
         "data-theme",
         stored === "dark" ? "dark" : "light",
@@ -45,7 +45,7 @@ const loginPage = `<!doctype html>
     .container { max-width: 480px; margin: 80px auto; padding: 24px; background: var(--color-bg-soft); border: 1px solid var(--color-bg-light-2); border-radius: 12px; }
     h1 { margin: 0 0 16px; font-size: 20px; }
     label { display: block; margin: 12px 0 6px; font-size: 14px; color: #cbd5e1; }
-    input { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 8px; border: 1px solid #475569; background: #0b1220; color: #e2e8f0; color-scheme: dark; }
+    input { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--color-bg-light-3); background: var(--color-bg-darkest); color: var(--color-fg-medium); color-scheme: dark; }
     .datetime-input { background: #0b1220; border: 1px solid #475569; color: #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 14px; font-weight: 400; min-width: 228px; text-align: left; white-space: nowrap; padding-right: 40px; box-sizing: border-box; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e2e8f0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='4' width='18' height='18' rx='2' ry='2'/><line x1='16' y1='2' x2='16' y2='6'/><line x1='8' y1='2' x2='8' y2='6'/><line x1='3' y1='10' x2='21' y2='10'/></svg>"); background-repeat: no-repeat; background-position: right 12px center; background-size: 18px 18px; }
     .datetime-input:focus { border-color: #2563eb; outline: none; }
     input[type="datetime-local"]::-webkit-calendar-picker-indicator { opacity: 0; cursor: pointer; }
@@ -178,7 +178,7 @@ const adminPage = `<!doctype html>
   <title>Copilot API Admin</title>
   <script>
     (function () {
-      const stored = localStorage.getItem("copilot-admin-theme") ?? "light";
+      const stored = localStorage.getItem("copilot-admin-theme") || "light";
       document.documentElement.setAttribute(
         "data-theme",
         stored === "dark" ? "dark" : "light",
@@ -233,6 +233,13 @@ const adminPage = `<!doctype html>
     .page-header { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: space-between; margin-bottom: 12px; }
     .title { margin: 0; font-size: 22px; }
     .card { background: var(--color-bg-soft); border: 1px solid var(--color-bg-light-2); border-radius: 12px; padding: 16px; margin-top: 16px; }
+    .usage-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+    .usage-item { background: var(--color-bg-darkest); border: 1px solid var(--color-bg-light-2); border-radius: 10px; padding: 12px; }
+    .usage-item h4 { margin: 0 0 6px; font-size: 13px; color: var(--color-gray); font-weight: 600; }
+    .usage-item .value { font-size: 18px; font-weight: 700; color: var(--color-fg-lightest); }
+    .usage-subtle { font-size: 12px; color: var(--color-gray); margin-top: 4px; }
+    .usage-progress { height: 6px; background: var(--color-bg-light-2); border-radius: 999px; overflow: hidden; margin-top: 8px; }
+    .usage-progress span { display: block; height: 100%; background: var(--color-blue); border-radius: 999px; }
     .new-form { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; }
     input { padding: 10px 12px; border-radius: 8px; border: 1px solid var(--color-bg-light-3); background: var(--color-bg-darkest); color: var(--color-fg-medium); color-scheme: dark; }
     .datetime-input { background: var(--color-bg-darkest); border: 1px solid var(--color-bg-light-3); color: var(--color-fg-medium); border-radius: 8px; padding: 10px 14px; font-size: 14px; font-weight: 400; min-width: 228px; text-align: left; white-space: nowrap; padding-right: 40px; box-sizing: border-box; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d5c4a1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='4' width='18' height='18' rx='2' ry='2'/><line x1='16' y1='2' x2='16' y2='6'/><line x1='8' y1='2' x2='8' y2='6'/><line x1='3' y1='10' x2='21' y2='10'/></svg>"); background-repeat: no-repeat; background-position: right 12px center; background-size: 18px 18px; }
@@ -270,6 +277,15 @@ const adminPage = `<!doctype html>
         <button id="refresh" class="secondary">刷新</button>
         <button id="logout" class="danger">退出登录</button>
       </div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content: space-between; align-items: center;">
+        <h3 style="margin: 0; font-size: 16px;">Copilot 用量</h3>
+        <span id="usage-updated" class="muted"></span>
+      </div>
+      <div id="usage-summary" class="usage-grid" style="margin-top: 12px;"></div>
+      <div id="usage-meta" class="muted" style="margin-top: 8px;"></div>
     </div>
 
     <div class="card">
@@ -342,6 +358,9 @@ const adminPage = `<!doctype html>
     const settingsSaveButton = document.getElementById("settings-save");
     let currentSettingsKeyId = "";
     let keyItems = [];
+    const usageSummary = document.getElementById("usage-summary");
+    const usageMeta = document.getElementById("usage-meta");
+    const usageUpdated = document.getElementById("usage-updated");
 
     const pad = (n) => String(n).padStart(2, "0");
     const toDatetimeLocal = (iso) => {
@@ -365,8 +384,8 @@ const adminPage = `<!doctype html>
     function openSettingsDialog(item) {
       currentSettingsKeyId = item.id;
       settingsTitle.textContent = "设置 API Key：" + item.id;
-      settingsTotalLimitInput.value = item.totalLimit ?? "";
-      settingsDailyLimitInput.value = item.dailyLimit ?? "";
+      settingsTotalLimitInput.value = item.totalLimit == null ? "" : item.totalLimit;
+      settingsDailyLimitInput.value = item.dailyLimit == null ? "" : item.dailyLimit;
       settingsExpiresAtInput.value = toDatetimeLocal(item.expiresAt);
       settingsMsg.textContent = "";
       settingsDialog.showModal();
@@ -387,6 +406,109 @@ const adminPage = `<!doctype html>
       document.documentElement.setAttribute("data-theme", resolved);
       themeIcon.textContent = resolved === "dark" ? "🌙" : "🌞";
       themeLabel.textContent = resolved === "dark" ? "Dark" : "Light";
+    }
+
+    function formatPercent(value) {
+      if (typeof value !== "number" || Number.isNaN(value)) return "-";
+      return String(Math.round(value * 10) / 10) + "%";
+    }
+
+    function formatNumber(value) {
+      if (typeof value !== "number" || Number.isNaN(value)) return "-";
+      return value.toLocaleString("en-US");
+    }
+
+    function clampPercent(value) {
+      if (typeof value !== "number" || Number.isNaN(value)) return 0;
+      return Math.max(0, Math.min(100, value));
+    }
+
+    function renderUsage(data) {
+      if (!usageSummary || !usageMeta || !usageUpdated) {
+        return;
+      }
+      const quota = data && data.quota_snapshots ? data.quota_snapshots : {};
+      const items = [];
+      const premium = quota.premium_interactions || {};
+      const completions = quota.completions || {};
+      const chat = quota.chat || {};
+
+      items.push({
+        label: "Premium 剩余",
+        value: premium.unlimited ? "Unlimited" : formatNumber(premium.remaining),
+        sub: premium.unlimited ? "无限制" : "剩余 " + formatPercent(premium.percent_remaining),
+        percent: premium.unlimited ? 100 : clampPercent(premium.percent_remaining),
+      });
+      items.push({
+        label: "Completions 剩余",
+        value: completions.unlimited ? "Unlimited" : formatNumber(completions.remaining),
+        sub: completions.unlimited ? "无限制" : "剩余 " + formatPercent(completions.percent_remaining),
+        percent: completions.unlimited ? 100 : clampPercent(completions.percent_remaining),
+      });
+      items.push({
+        label: "Chat 剩余",
+        value: chat.unlimited ? "Unlimited" : formatNumber(chat.remaining),
+        sub: chat.unlimited ? "无限制" : "剩余 " + formatPercent(chat.percent_remaining),
+        percent: chat.unlimited ? 100 : clampPercent(chat.percent_remaining),
+      });
+      const planValue = data && data.copilot_plan ? data.copilot_plan : "-";
+      const planSku = data && data.access_type_sku ? data.access_type_sku : "-";
+      items.push({
+        label: "套餐",
+        value: planValue,
+        sub: planSku,
+      });
+      const resetDate = data && data.quota_reset_date
+        ? data.quota_reset_date
+        : "-";
+      const resetUtc = data && data.quota_reset_date_utc
+        ? data.quota_reset_date_utc
+        : "-";
+      items.push({
+        label: "重置日期",
+        value: resetDate,
+        sub: resetUtc,
+      });
+
+      let usageHtml = "";
+      items.forEach((item) => {
+        usageHtml += '<div class="usage-item"><h4>' + item.label +
+          '</h4><div class="value">' + item.value +
+          "</div>";
+        if (item.percent !== undefined) {
+          usageHtml += '<div class="usage-progress"><span style="width:' + item.percent + '%"></span></div>';
+        }
+        usageHtml += '<div class="usage-subtle">' + item.sub + "</div></div>";
+      });
+      usageSummary.innerHTML = usageHtml;
+      usageMeta.textContent = data && data.login ? "账号：" + data.login : "";
+      usageUpdated.textContent = data && data.assigned_date
+        ? "绑定时间：" + data.assigned_date
+        : "";
+    }
+
+    async function loadUsageSummary() {
+      if (!usageSummary || !usageMeta || !usageUpdated) {
+        return;
+      }
+      usageSummary.innerHTML = '<div class="muted">加载中...</div>';
+      usageMeta.textContent = "";
+      usageUpdated.textContent = "";
+      const response = await fetch("/usage", { credentials: "include" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        usageSummary.innerHTML =
+          '<div class="muted">' + (data.error || "读取失败") + "</div>";
+        return;
+      }
+
+      if (!data || !data.quota_snapshots) {
+        usageSummary.innerHTML =
+          '<div class="muted">暂无用量数据</div>';
+        return;
+      }
+
+      renderUsage(data);
     }
 
     async function copyText(value) {
@@ -421,10 +543,10 @@ const adminPage = `<!doctype html>
           "<td>" + item.id + "</td>" +
           "<td>" + item.prefix + "</td>" +
           "<td>" + item.createdAt + "</td>" +
-          "<td>" + (item.totalUsage ?? 0) + "</td>" +
-          "<td>" + (item.totalLimit ?? "-") + "</td>" +
-          "<td>" + (item.dailyLimit ?? "-") + "</td>" +
-          "<td>" + (item.expiresAt ?? "-") + "</td>" +
+          "<td>" + (item.totalUsage == null ? 0 : item.totalUsage) + "</td>" +
+          "<td>" + (item.totalLimit == null ? "-" : item.totalLimit) + "</td>" +
+          "<td>" + (item.dailyLimit == null ? "-" : item.dailyLimit) + "</td>" +
+          "<td>" + (item.expiresAt == null ? "-" : item.expiresAt) + "</td>" +
           '<td><div class="actions">' +
           '<button data-id="' + item.id + '" data-action="settings" class="secondary">设置</button>' +
           '<button data-id="' + item.id + '" data-action="usage" class="secondary">用量</button>' +
@@ -509,7 +631,10 @@ const adminPage = `<!doctype html>
       newToken.textContent = "";
     });
 
-    document.getElementById("refresh").addEventListener("click", loadKeys);
+    document.getElementById("refresh").addEventListener("click", () => {
+      loadUsageSummary();
+      loadKeys();
+    });
     settingsCancelButton.addEventListener("click", closeSettingsDialog);
     settingsSaveButton.addEventListener("click", async () => {
       if (!currentSettingsKeyId) {
@@ -544,15 +669,16 @@ const adminPage = `<!doctype html>
 
     themeToggle.addEventListener("click", () => {
       const current =
-        document.documentElement.getAttribute("data-theme") ?? "light";
+        document.documentElement.getAttribute("data-theme") || "light";
       const nextTheme = current === "dark" ? "light" : "dark";
       localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
       applyTheme(nextTheme);
     });
 
-    applyTheme(localStorage.getItem(THEME_STORAGE_KEY) ?? "light");
+    applyTheme(localStorage.getItem(THEME_STORAGE_KEY) || "light");
 
     enableDatetimePickerClick();
+    loadUsageSummary();
     loadKeys();
   </script>
 </body>
