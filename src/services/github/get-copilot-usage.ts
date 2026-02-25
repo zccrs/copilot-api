@@ -1,11 +1,15 @@
 import { GITHUB_API_BASE_URL, githubHeaders } from "~/lib/api-config"
 import { HTTPError } from "~/lib/error"
 import { state } from "~/lib/state"
+import { githubFetch } from "~/services/github/github-fetch"
 
 export const getCopilotUsage = async (): Promise<CopilotUsageResponse> => {
-  const response = await fetch(`${GITHUB_API_BASE_URL}/copilot_internal/user`, {
-    headers: githubHeaders(state),
-  })
+  const response = await githubFetch(
+    `${GITHUB_API_BASE_URL}/copilot_internal/user`,
+    {
+      headers: githubHeaders(state),
+    },
+  )
 
   if (!response.ok) {
     throw new HTTPError("Failed to get Copilot usage", response)
