@@ -12,12 +12,16 @@ const API_KEYS_PATH =
 const API_KEY_USAGE_PATH =
   process.env.COPILOT_API_KEY_USAGE_PATH
   ?? path.join(APP_DIR, "api_key_usage.json")
+const API_KEY_AUDIT_PATH =
+  process.env.COPILOT_API_KEY_AUDIT_PATH
+  ?? path.join(APP_DIR, "api_key_audit.json")
 
 export const PATHS = {
   APP_DIR,
   GITHUB_TOKEN_PATH,
   API_KEYS_PATH,
   API_KEY_USAGE_PATH,
+  API_KEY_AUDIT_PATH,
 }
 
 export async function ensurePaths(): Promise<void> {
@@ -25,6 +29,7 @@ export async function ensurePaths(): Promise<void> {
   await ensureFile(PATHS.GITHUB_TOKEN_PATH)
   await ensureJsonFile(PATHS.API_KEYS_PATH, "[]")
   await ensureJsonFile(PATHS.API_KEY_USAGE_PATH, "[]")
+  await ensureJsonFile(PATHS.API_KEY_AUDIT_PATH, "[]")
 }
 
 async function ensureFile(filePath: string): Promise<void> {

@@ -247,6 +247,8 @@ export const createApiKeyAuthMiddleware = (): MiddlewareHandler => {
       }
     }
 
+    c.set("managedKeyId", managedKey?.id ?? null)
+
     consola.debug("[api-auth] request authorized", {
       token: maskToken(token),
     })

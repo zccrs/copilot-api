@@ -54,6 +54,31 @@ export interface ManagedApiKeyUsageSummary {
   daily: number
 }
 
+export interface ManagedApiKeyAuditRecord {
+  id: string
+  keyId: string
+  timestamp: string
+  path: string
+  method: string
+  status: number
+  durationMs: number
+  tokenUsage: number | null
+  inputTokens: number | null
+  outputTokens: number | null
+  request: unknown
+  response: unknown
+  error: string | null
+}
+
+export interface ManagedApiKeyAuditPage {
+  keyId: string
+  page: number
+  pageSize: number
+  total: number
+  pages: number
+  items: Array<ManagedApiKeyAuditRecord>
+}
+
 interface CreateManagedApiKeyOptions {
   totalLimit?: number | null
   dailyLimit?: number | null
@@ -147,6 +172,42 @@ const isUsageRecord = (value: unknown): value is ManagedApiKeyUsageRecord => {
   )
 }
 
+const isAuditRecord = (value: unknown): value is ManagedApiKeyAuditRecord => {
+  if (!value || typeof value !== "object") {
+    return false
+  }
+
+  const candidate = value as Partial<ManagedApiKeyAuditRecord>
+  const isTokenUsageValid =
+    candidate.tokenUsage === undefined
+    || candidate.tokenUsage === null
+    || Number.isInteger(candidate.tokenUsage)
+  const isInputTokensValid =
+    candidate.inputTokens === undefined
+    || candidate.inputTokens === null
+    || Number.isInteger(candidate.inputTokens)
+  const isOutputTokensValid =
+    candidate.outputTokens === undefined
+    || candidate.outputTokens === null
+    || Number.isInteger(candidate.outputTokens)
+  const conditions = [
+    typeof candidate.id === "string",
+    typeof candidate.keyId === "string",
+    typeof candidate.timestamp === "string",
+    typeof candidate.path === "string",
+    typeof candidate.method === "string",
+    Number.isInteger(candidate.status),
+    Number.isFinite(candidate.durationMs ?? Number.NaN),
+    isTokenUsageValid,
+    isInputTokensValid,
+    isOutputTokensValid,
+    Object.hasOwn(candidate, "request"),
+    Object.hasOwn(candidate, "response"),
+    candidate.error === null || typeof candidate.error === "string",
+  ]
+  return conditions.every(Boolean)
+}
+
 const readManagedApiKeys = async (): Promise<Array<ManagedApiKey>> => {
   try {
     const raw = await fs.readFile(PATHS.API_KEYS_PATH)
@@ -182,6 +243,20 @@ const readUsageRecords = async (): Promise<Array<ManagedApiKeyUsageRecord>> => {
   }
 }
 
+const readAuditRecords = async (): Promise<Array<ManagedApiKeyAuditRecord>> => {
+  try {
+    const raw = await fs.readFile(PATHS.API_KEY_AUDIT_PATH)
+    const parsed: unknown = JSON.parse(raw.toString("utf8"))
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+
+    return parsed.filter((item) => isAuditRecord(item))
+  } catch {
+    return []
+  }
+}
+
 const writeManagedApiKeys = async (
   keys: Array<ManagedApiKey>,
 ): Promise<void> => {
@@ -200,6 +275,16 @@ const writeUsageRecords = async (
   await fs.writeFile(tempPath, JSON.stringify(records, null, 2))
   await fs.rename(tempPath, PATHS.API_KEY_USAGE_PATH)
   await fs.chmod(PATHS.API_KEY_USAGE_PATH, 0o600)
+}
+
+const writeAuditRecords = async (
+  records: Array<ManagedApiKeyAuditRecord>,
+): Promise<void> => {
+  const tempPath = `${PATHS.API_KEY_AUDIT_PATH}.${randomUUID()}.tmp`
+  await fs.mkdir(path.dirname(PATHS.API_KEY_AUDIT_PATH), { recursive: true })
+  await fs.writeFile(tempPath, JSON.stringify(records, null, 2))
+  await fs.rename(tempPath, PATHS.API_KEY_AUDIT_PATH)
+  await fs.chmod(PATHS.API_KEY_AUDIT_PATH, 0o600)
 }
 
 const formatPrefix = (token: string): string => {
@@ -372,6 +457,111 @@ export const recordManagedApiKeyUsage = async (
   })
 
   await writeUsageRecords(records)
+}
+
+export const recordManagedApiKeyAudit = async (
+  keyId: string,
+  context: {
+    path: string
+    method: string
+    status: number
+    durationMs: number
+    tokenUsage?: number | null
+    inputTokens?: number | null
+    outputTokens?: number | null
+    request: unknown
+    response: unknown
+    error?: string | null
+  },
+): Promise<void> => {
+  const records = await readAuditRecords()
+  records.push({
+    id: randomUUID(),
+    keyId,
+    timestamp: new Date().toISOString(),
+    path: context.path,
+    method: context.method,
+    status: context.status,
+    durationMs: context.durationMs,
+    tokenUsage: context.tokenUsage ?? null,
+    inputTokens: context.inputTokens ?? null,
+    outputTokens: context.outputTokens ?? null,
+    request: context.request,
+    response: context.response,
+    error: context.error ?? null,
+  })
+
+  await writeAuditRecords(records)
+}
+
+export const getManagedApiKeyAuditPage = async (
+  keyId: string,
+  options: {
+    from?: Date
+    to?: Date
+    query?: string
+    page: number
+    pageSize: number
+  },
+): Promise<ManagedApiKeyAuditPage> => {
+  const records = await readAuditRecords()
+  const query = options.query?.trim().toLowerCase()
+  const fromTs = options.from?.getTime()
+  const toTs = options.to?.getTime()
+
+  const filtered = records.filter((record) => {
+    if (record.keyId !== keyId) {
+      return false
+    }
+
+    const recordTs = new Date(record.timestamp).getTime()
+    if (typeof fromTs === "number" && recordTs < fromTs) {
+      return false
+    }
+    if (typeof toTs === "number" && recordTs > toTs) {
+      return false
+    }
+
+    if (!query) {
+      return true
+    }
+
+    const searchText = [
+      record.path,
+      record.method,
+      String(record.status),
+      record.inputTokens === null ? "" : String(record.inputTokens),
+      record.outputTokens === null ? "" : String(record.outputTokens),
+      record.tokenUsage === null ? "" : String(record.tokenUsage),
+      record.error ?? "",
+      JSON.stringify(record.request ?? ""),
+      JSON.stringify(record.response ?? ""),
+    ]
+      .join(" ")
+      .toLowerCase()
+
+    return searchText.includes(query)
+  })
+
+  filtered.sort(
+    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+  )
+
+  const total = filtered.length
+  const pageSize = Math.max(1, options.pageSize)
+  const pages = Math.max(1, Math.ceil(total / pageSize))
+  const page = Math.min(Math.max(1, options.page), pages)
+  const start = (page - 1) * pageSize
+  const items = filtered.slice(start, start + pageSize)
+
+  return {
+    keyId,
+    page,
+    pageSize,
+    total,
+    pages,
+    items,
+  }
 }
 
 export const getPrimaryApiToken = async (): Promise<string | undefined> => {

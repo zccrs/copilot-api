@@ -1,12 +1,17 @@
 import { Hono } from "hono"
 
-import { forwardError } from "~/lib/error"
+import { recordAuditSafely } from "~/lib/audit"
+import { HTTPError, forwardError } from "~/lib/error"
+import { getManagedKeyId } from "~/lib/managed-key"
 import { state } from "~/lib/state"
 import { cacheModels } from "~/lib/utils"
 
 export const modelRoutes = new Hono()
 
 modelRoutes.get("/", async (c) => {
+  const managedKeyId = getManagedKeyId(c)
+  const startedAt = Date.now()
+
   try {
     if (!state.models) {
       // This should be handled by startup logic, but as a fallback.
@@ -23,12 +28,34 @@ modelRoutes.get("/", async (c) => {
       display_name: model.name,
     }))
 
-    return c.json({
+    const response = {
       object: "list",
       data: models,
       has_more: false,
+    }
+
+    await recordAuditSafely(managedKeyId, {
+      path: c.req.path,
+      method: c.req.method,
+      status: 200,
+      durationMs: Date.now() - startedAt,
+      request: null,
+      response,
     })
+
+    return c.json(response)
   } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error"
+    await recordAuditSafely(managedKeyId, {
+      path: c.req.path,
+      method: c.req.method,
+      status: error instanceof HTTPError ? error.response.status : 500,
+      durationMs: Date.now() - startedAt,
+      request: null,
+      response: null,
+      error: errorMessage,
+    })
     return await forwardError(c, error)
   }
 })
