@@ -53,6 +53,27 @@ const loginPage = `<!doctype html>
     button { margin-top: 16px; width: 100%; padding: 10px 12px; border: none; border-radius: 8px; background: var(--color-blue); color: var(--color-bg-darkest); font-weight: 600; cursor: pointer; }
     .error { margin-top: 12px; color: #f87171; min-height: 20px; font-size: 14px; }
     .page-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .page-header h1 { margin: 0; }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .back-link {
+      color: var(--color-fg-lightest);
+      text-decoration: none;
+      font-size: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      border: 1px solid var(--color-bg-light-3);
+      background: var(--color-bg-soft);
+      transition: border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+    }
+    .back-link:hover {
+      border-color: var(--color-blue);
+      color: var(--color-blue);
+      transform: translateX(-1px);
+    }
     .theme-toggle { border: 1px solid var(--color-bg-light-3); background: var(--color-bg-soft); color: var(--color-fg-lightest); padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
     .theme-toggle:hover { border-color: var(--color-blue); color: var(--color-blue); }
 
@@ -793,7 +814,6 @@ const settingsPage = (keyId: string): string => `<!doctype html>
       </div>
       <div class="row">
         <button id="save">保存</button>
-        <button id="back" class="secondary">返回</button>
       </div>
       <div id="msg" class="msg"></div>
     </div>
@@ -959,6 +979,26 @@ const usagePage = (keyId: string): string => `<!doctype html>
     button.secondary { background: var(--color-bg-light-2); color: var(--color-fg-lightest); }
     button.icon { display: inline-flex; align-items: center; gap: 6px; }
     .page-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .back-link {
+      color: var(--color-fg-lightest);
+      text-decoration: none;
+      font-size: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      border: 1px solid var(--color-bg-light-3);
+      background: var(--color-bg-soft);
+      transition: border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+    }
+    .back-link:hover {
+      border-color: var(--color-blue);
+      color: var(--color-blue);
+      transform: translateX(-1px);
+    }
     .summary { margin-top: 10px; color: var(--color-gray); }
     .chart-wrap { margin-top: 12px; border: 1px solid var(--color-bg-light-2); border-radius: 8px; padding: 8px; background: var(--color-bg-darkest); }
     .chart-scroll { width: 100%; overflow-x: auto; overflow-y: hidden; }
@@ -1000,7 +1040,14 @@ const usagePage = (keyId: string): string => `<!doctype html>
 <body>
   <div class="container">
     <div class="page-header">
-      <h1>用量统计：${keyId}</h1>
+      <div class="header-left">
+        <a id="back" class="back-link" href="/admin" aria-label="返回">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </a>
+        <h1>用量统计：${keyId}</h1>
+      </div>
       <button id="theme-toggle" class="theme-toggle" type="button">
         <span id="theme-icon">🌞</span>
         <span id="theme-label">Light</span>
@@ -1032,7 +1079,7 @@ const usagePage = (keyId: string): string => `<!doctype html>
             </div>
           </div>
         </div>
-        <button id="back" class="secondary">返回</button>
+        
       </div>
       <div id="summary" class="summary"></div>
       <div class="chart-wrap">
@@ -1785,6 +1832,27 @@ const auditPage = (keyId: string): string => `<!doctype html>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: var(--color-bg-darkest); color: var(--color-fg-light); }
     .container { max-width: 1400px; margin: 20px auto; padding: 0 16px; }
     .page-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+    .page-header h1 { margin: 0; }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .back-link {
+      color: var(--color-fg-lightest);
+      text-decoration: none;
+      font-size: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      border: 1px solid var(--color-bg-light-3);
+      background: var(--color-bg-soft);
+      transition: border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+    }
+    .back-link:hover {
+      border-color: var(--color-blue);
+      color: var(--color-blue);
+      transform: translateX(-1px);
+    }
     .card { background: var(--color-bg-soft); border: 1px solid var(--color-bg-light-2); border-radius: 12px; padding: 16px; margin-top: 16px; }
     .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
     label { display:block; font-size: 12px; color: var(--color-gray); margin-bottom: 6px; }
@@ -1831,13 +1899,19 @@ const auditPage = (keyId: string): string => `<!doctype html>
 <body>
   <div class="container">
     <div class="page-header">
-      <h1>访问审计：${keyId}</h1>
+      <div class="header-left">
+        <a id="back" class="back-link" href="/admin" aria-label="返回">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </a>
+        <h1>访问审计：${keyId}</h1>
+      </div>
       <div class="actions">
         <button id="theme-toggle" class="theme-toggle" type="button">
           <span id="theme-icon">🌞</span>
           <span id="theme-label">Light</span>
         </button>
-        <button id="back" class="secondary">返回</button>
       </div>
     </div>
 
