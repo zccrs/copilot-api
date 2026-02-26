@@ -2259,7 +2259,27 @@ const auditPage = (keyId: string): string => `<!doctype html>
       }
     }
 
-    function renderRows(items) {
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function escapeRegExp(value) {
+      return value.replace(/[-/\\^$*+?.()|[\\]{}]/g, "\\$&");
+    }
+
+    function highlightText(value, query) {
+      if (!query) return escapeHtml(value);
+      const escaped = escapeHtml(value);
+      const regex = new RegExp(escapeRegExp(query), "gi");
+      return escaped.replace(regex, (match) => "<mark>" + match + "</mark>");
+    }
+
+    function renderRows(items, query) {
       rows.innerHTML = "";
       if (!items.length) {
         rows.innerHTML = '<tr><td colspan="6" class="muted">暂无数据</td></tr>';
@@ -2271,11 +2291,11 @@ const auditPage = (keyId: string): string => `<!doctype html>
         const timeCell = document.createElement("td");
         timeCell.textContent = formatTime(item.timestamp);
         const methodCell = document.createElement("td");
-        methodCell.textContent = item.method;
+        methodCell.innerHTML = highlightText(item.method, query);
         const pathCell = document.createElement("td");
-        pathCell.textContent = item.path;
+        pathCell.innerHTML = highlightText(item.path, query);
         const statusCell = document.createElement("td");
-        statusCell.textContent = String(item.status);
+        statusCell.innerHTML = highlightText(String(item.status), query);
         const inputTokenCell = document.createElement("td");
         const outputTokenCell = document.createElement("td");
         const resolvedInputTokens =
@@ -2286,14 +2306,14 @@ const auditPage = (keyId: string): string => `<!doctype html>
           item.outputTokens === null || item.outputTokens === undefined
             ? null
             : item.outputTokens;
-        inputTokenCell.textContent =
+        inputTokenCell.innerHTML =
           resolvedInputTokens === null || resolvedInputTokens === undefined
             ? "-"
-            : String(resolvedInputTokens);
-        outputTokenCell.textContent =
+            : highlightText(String(resolvedInputTokens), query);
+        outputTokenCell.innerHTML =
           resolvedOutputTokens === null || resolvedOutputTokens === undefined
             ? "-"
-            : String(resolvedOutputTokens);
+            : highlightText(String(resolvedOutputTokens), query);
         const durationCell = document.createElement("td");
         durationCell.textContent = item.durationMs + "ms";
 
@@ -2310,7 +2330,10 @@ const auditPage = (keyId: string): string => `<!doctype html>
         requestTitle.textContent = "请求";
         requestTitle.className = "muted";
         const requestPre = document.createElement("pre");
-        requestPre.textContent = formatJson(item.request);
+        requestPre.innerHTML = highlightText(
+          formatJson(item.request),
+          query,
+        );
         requestWrap.appendChild(requestTitle);
         requestWrap.appendChild(requestPre);
 
@@ -2319,9 +2342,9 @@ const auditPage = (keyId: string): string => `<!doctype html>
         responseTitle.textContent = item.error ? "错误" : "响应";
         responseTitle.className = "muted";
         const responsePre = document.createElement("pre");
-        responsePre.textContent = item.error
-          ? item.error
-          : formatJson(item.response);
+        responsePre.innerHTML = item.error
+          ? highlightText(item.error, query)
+          : highlightText(formatJson(item.response), query);
         responseWrap.appendChild(responseTitle);
         responseWrap.appendChild(responsePre);
 
@@ -2369,10 +2392,18 @@ const auditPage = (keyId: string): string => `<!doctype html>
         "共 " + state.total + " 条记录" +
         (query ? "，关键字：" + query : "");
       pageInfo.textContent = "第 " + state.page + " / " + state.pages + " 页";
-      renderRows(Array.isArray(data.items) ? data.items : []);
+      renderRows(Array.isArray(data.items) ? data.items : [], query);
     }
 
     document.getElementById("apply").addEventListener("click", () => {
+      state.page = 1;
+      state.pageSize = Number(pageSizeInput.value) || 20;
+      loadPage();
+    });
+
+    filterQuery.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
       state.page = 1;
       state.pageSize = Number(pageSizeInput.value) || 20;
       loadPage();
