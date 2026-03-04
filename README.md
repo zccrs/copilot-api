@@ -82,18 +82,18 @@ docker run -p 4141:4141 -v $(pwd)/copilot-data:/root/.local/share/copilot-api co
 
 ### Docker with Environment Variables
 
-You can pass the GitHub token directly to the container using environment variables:
+You can pass the GitHub token to the container using environment variables:
 
 ```sh
-# Build with GitHub token
-docker build --build-arg GH_TOKEN=your_github_token_here -t copilot-api .
-
-# Run with GitHub token
+# Run with GitHub token (RECOMMENDED - secure method)
 docker run -p 4141:4141 -e GH_TOKEN=your_github_token_here copilot-api
 
 # Run with additional options
 docker run -p 4141:4141 -e GH_TOKEN=your_token copilot-api start --verbose --port 4141
 ```
+
+> [!WARNING]
+> **Security Notice:** Never use `docker build --build-arg GH_TOKEN=...` to pass secrets. Build arguments are stored in the image history and can be extracted. Always use runtime environment variables with `docker run -e` instead.
 
 ### Docker Compose Example
 
@@ -105,8 +105,28 @@ services:
     ports:
       - "4141:4141"
     environment:
-      - GH_TOKEN=your_github_token_here
+      - GH_TOKEN=${GH_TOKEN}  # Reads from host environment or .env file
     restart: unless-stopped
+```
+
+For production deployments, consider using Docker secrets:
+
+```yaml
+version: "3.8"
+services:
+  copilot-api:
+    build: .
+    ports:
+      - "4141:4141"
+    secrets:
+      - github_token
+    environment:
+      - GH_TOKEN_FILE=/run/secrets/github_token
+    restart: unless-stopped
+
+secrets:
+  github_token:
+    external: true
 ```
 
 The Docker image includes:
@@ -349,3 +369,54 @@ bun run start
   - `--rate-limit <seconds>`: Enforces a minimum time interval between requests. For example, `copilot-api start --rate-limit 30` will ensure there's at least a 30-second gap between requests.
   - `--wait`: Use this with `--rate-limit`. It makes the server wait for the cooldown period to end instead of rejecting the request with an error. This is useful for clients that don't automatically retry on rate limit errors.
 - If you have a GitHub business or enterprise plan account with Copilot, use the `--account-type` flag (e.g., `--account-type business`). See the [official documentation](https://docs.github.com/en/enterprise-cloud@latest/copilot/managing-copilot/managing-github-copilot-in-your-organization/managing-access-to-github-copilot-in-your-organization/managing-github-copilot-access-to-your-organizations-network#configuring-copilot-subscription-based-network-routing-for-your-enterprise-or-organization) for more details.
+
+## Security Considerations
+
+> [!CAUTION]
+> This section contains important security information. Please read carefully before deploying.
+
+### Token Security
+
+**⚠️ Critical Security Warning:**
+
+This proxy exposes GitHub and Copilot API tokens. Improper use can lead to credential theft and unauthorized access to your GitHub account.
+
+#### Best Practices:
+
+1. **Never use `--show-token` in production** - This flag logs credentials to console/stdout which may be captured in logs
+2. **Avoid `--github-token` CLI argument** - Command-line arguments are visible in process listings and shell history
+3. **Use environment variables instead** - Set `GH_TOKEN` environment variable rather than passing tokens via CLI
+4. **Protect the `/token` endpoint** - By default, `GET /token` returns your active Copilot token without authentication
+5. **Deploy behind a firewall** - Never expose this API to the public internet without proper authentication
+6. **Use Docker runtime environment variables** - Do NOT use `docker build --build-arg GH_TOKEN=...` as tokens become part of image history
+
+#### Secure Docker Deployment:
+
+```bash
+# ✅ SECURE - Runtime environment variable
+docker run -p 4141:4141 -e GH_TOKEN=your_token copilot-api
+
+# ❌ INSECURE - Build-time argument (token stored in image)
+docker build --build-arg GH_TOKEN=your_token -t copilot-api .
+```
+
+#### Token Storage:
+
+- Tokens are stored in `~/.local/share/copilot-api/github_token` with `0600` permissions
+- For production, consider using a secrets management system
+- Regularly rotate your GitHub tokens
+
+### Network Security
+
+- **Local Development Only**: By default, the server binds to `0.0.0.0`, making it accessible on your network
+- **Production**: Deploy behind a reverse proxy with authentication (nginx, Caddy, etc.)
+- **Rate Limiting**: Use `--rate-limit` to prevent abuse and avoid GitHub's rate limits
+
+### Monitoring
+
+- Monitor your GitHub account for unusual activity
+- Check the usage dashboard regularly: `GET /usage`
+- GitHub may warn or suspend accounts for excessive automated usage
+
+For a complete security audit, see [SECURITY_AUDIT.md](./SECURITY_AUDIT.md).
+
